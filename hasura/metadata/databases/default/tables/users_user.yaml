@@ -1,0 +1,11 @@
+table:
+  name: user
+  schema: users
+array_relationships:
+  - name: refresh_tokens
+    using:
+      foreign_key_constraint_on:
+        column: user_id
+        table:
+          name: refresh_tokens
+          schema: users

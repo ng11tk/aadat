@@ -1,0 +1,15 @@
+table:
+  name: unloading_item
+  schema: opening
+object_relationships:
+  - name: unloading
+    using:
+      foreign_key_constraint_on: unloading_id
+array_relationships:
+  - name: remaining_items
+    using:
+      foreign_key_constraint_on:
+        column: unloading_item_id
+        table:
+          name: remaining_item
+          schema: opening

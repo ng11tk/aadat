@@ -1,0 +1,439 @@
+import React, { useState } from "react";
+import { motion } from "framer-motion";
+import { Plus } from "lucide-react";
+
+const today = new Date();
+const formatDate = (date) => date.toISOString().split("T")[0];
+
+const categoryColors = {
+  Food: "bg-green-100 text-green-800",
+  Repair: "bg-orange-100 text-orange-800",
+  Commission: "bg-purple-100 text-purple-800",
+  Salary: "bg-indigo-100 text-indigo-800",
+  Advance: "bg-yellow-100 text-yellow-800",
+  Bhada: "bg-pink-100 text-pink-800",
+  "Market Fee": "bg-teal-100 text-teal-800",
+};
+
+const ExpensePage = () => {
+  const [expenses, setExpenses] = useState([
+    {
+      id: 1,
+      category: "Food",
+      description: "Lunch for team",
+      amount: 500,
+      date: "2025-09-18",
+    },
+    {
+      id: 2,
+      category: "Repair",
+      description: "Machine repair",
+      amount: 1200,
+      date: "2025-09-16",
+    },
+    {
+      id: 3,
+      category: "Commission",
+      person: "Ramesh",
+      amount: 2000,
+      date: "2025-09-15",
+    },
+    {
+      id: 4,
+      category: "Salary",
+      person: "Sita",
+      amount: 15000,
+      date: "2025-09-01",
+    },
+    {
+      id: 5,
+      category: "Advance",
+      person: "Manoj",
+      amount: 3000,
+      date: "2025-09-10",
+    },
+    {
+      id: 6,
+      category: "Bhada",
+      vehicle: "MH12AB1234",
+      modi: "Supplier X",
+      item: "Fertilizer",
+      amount: 800,
+      date: "2025-09-12",
+    },
+    { id: 7, category: "Market Fee", amount: 100, date: "2025-09-14" },
+  ]);
+
+  const [filterCategory, setFilterCategory] = useState("all");
+  const [filterMode, setFilterMode] = useState("thisMonth");
+  const [fromDate, setFromDate] = useState(
+    formatDate(new Date(today.getFullYear(), today.getMonth(), 1))
+  );
+  const [toDate, setToDate] = useState(formatDate(today));
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newExpense, setNewExpense] = useState({
+    category: "Food",
+    description: "",
+    person: "",
+    vehicle: "",
+    modi: "",
+    item: "",
+    amount: "",
+    date: "",
+  });
+
+  const applyQuickFilter = (mode) => {
+    setFilterMode(mode);
+    if (mode === "today") setFromDate(setToDate(formatDate(today)));
+    else if (mode === "thisWeek") {
+      const firstDay = new Date(today);
+      firstDay.setDate(today.getDate() - today.getDay());
+      setFromDate(formatDate(firstDay));
+      setToDate(formatDate(today));
+    } else if (mode === "thisMonth") {
+      setFromDate(
+        formatDate(new Date(today.getFullYear(), today.getMonth(), 1))
+      );
+      setToDate(formatDate(today));
+    }
+  };
+
+  const filteredExpenses = expenses.filter((e) => {
+    const date = new Date(e.date),
+      from = new Date(fromDate),
+      to = new Date(toDate);
+    const inRange = date >= from && date <= to;
+    return (
+      (filterCategory === "all" || e.category === filterCategory) && inRange
+    );
+  });
+
+  const totalAmount = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
+
+  const handleSaveExpense = () => {
+    if (!newExpense.category || !newExpense.amount) return;
+    setExpenses((prev) => [
+      ...prev,
+      {
+        id: Date.now(),
+        ...newExpense,
+        amount: Number(newExpense.amount),
+        date: newExpense.date || formatDate(today),
+      },
+    ]);
+    setNewExpense({
+      category: "Food",
+      description: "",
+      person: "",
+      vehicle: "",
+      modi: "",
+      item: "",
+      amount: "",
+      date: "",
+    });
+    setIsModalOpen(false);
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 p-6">
+      {/* Header */}
+      <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
+        <h1 className="text-2xl font-bold text-gray-800">Expense Dashboard</h1>
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 text-white font-semibold shadow hover:bg-emerald-700 transition"
+        >
+          <Plus className="w-5 h-5" /> Add Expense
+        </button>
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-wrap gap-3 mb-6 items-center">
+        <select
+          className="px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 shadow-sm focus:ring-2 focus:ring-emerald-200"
+          value={filterCategory}
+          onChange={(e) => setFilterCategory(e.target.value)}
+        >
+          {[
+            "all",
+            "Food",
+            "Repair",
+            "Commission",
+            "Salary",
+            "Advance",
+            "Bhada",
+            "Market Fee",
+          ].map((cat) => (
+            <option key={cat} value={cat}>
+              {cat}
+            </option>
+          ))}
+        </select>
+
+        {["today", "thisWeek", "thisMonth", "custom"].map((mode) => (
+          <button
+            key={mode}
+            onClick={() => applyQuickFilter(mode)}
+            className={`px-4 py-2 rounded-lg border text-sm font-medium shadow-sm transition ${
+              filterMode === mode
+                ? "bg-emerald-600 text-white border-emerald-600"
+                : "bg-white border-gray-300 text-gray-700 hover:bg-emerald-50"
+            }`}
+          >
+            {mode === "today"
+              ? "Today"
+              : mode === "thisWeek"
+              ? "This Week"
+              : mode === "thisMonth"
+              ? "This Month"
+              : "Custom"}
+          </button>
+        ))}
+
+        {filterMode === "custom" && (
+          <>
+            <input
+              type="date"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 shadow-sm"
+            />
+            <input
+              type="date"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 shadow-sm"
+            />
+          </>
+        )}
+      </div>
+
+      {/* Summary */}
+      <motion.div
+        whileHover={{ y: -2 }}
+        className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 mb-6 flex justify-between items-center"
+      >
+        <div>
+          <p className="text-gray-500 text-sm">Total Expense</p>
+          <h2 className="text-2xl font-bold text-red-600">₹{totalAmount}</h2>
+        </div>
+      </motion.div>
+
+      {/* Expense Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filteredExpenses.length === 0 && (
+          <p className="text-gray-500 italic">No expenses found</p>
+        )}
+        {filteredExpenses.map((exp) => (
+          <motion.div
+            key={exp.id}
+            whileHover={{ y: -3, boxShadow: "0px 8px 20px rgba(0,0,0,0.1)" }}
+            className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden transition"
+          >
+            {/* Category Color Strip */}
+            <div className={`h-2 ${categoryColors[exp.category]}`} />
+
+            {/* Card Content */}
+            <div className="p-5">
+              {/* Header */}
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="text-lg font-semibold text-gray-800">
+                  {exp.category}
+                </h3>
+                <span className="text-sm text-gray-500">
+                  {new Date(exp.date).toLocaleDateString()}
+                </span>
+              </div>
+
+              {/* Details */}
+              <div className="space-y-1 text-sm text-gray-600">
+                {exp.person && (
+                  <p>
+                    👤 <span className="font-medium">{exp.person}</span>
+                  </p>
+                )}
+                {exp.vehicle && (
+                  <p>
+                    🚚 Vehicle:{" "}
+                    <span className="font-medium">{exp.vehicle}</span>
+                  </p>
+                )}
+                {exp.modi && (
+                  <p>
+                    🏬 Supplier: <span className="font-medium">{exp.modi}</span>
+                  </p>
+                )}
+                {exp.item && (
+                  <p>
+                    📦 Item: <span className="font-medium">{exp.item}</span>
+                  </p>
+                )}
+                {exp.description && (
+                  <p className="italic text-gray-500">"{exp.description}"</p>
+                )}
+              </div>
+
+              {/* Amount */}
+              <div className="mt-4 flex justify-between items-center">
+                <span className="text-sm text-gray-500">Amount</span>
+                <span className="text-lg font-bold text-emerald-600">
+                  ₹{exp.amount}
+                </span>
+              </div>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
+      {isModalOpen && (
+        <dialog open className="modal modal-open">
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            className="modal-box max-w-md rounded-2xl p-6 bg-white shadow-xl border border-gray-200"
+          >
+            {/* Header */}
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-bold text-lg text-gray-800">
+                Add New Expense
+              </h3>
+              <span
+                className={`px-3 py-1 rounded-lg text-sm font-semibold ${
+                  categoryColors[newExpense.category]
+                }`}
+              >
+                {newExpense.category}
+              </span>
+            </div>
+
+            {/* Form */}
+            <div className="space-y-3">
+              <select
+                className="w-full px-3 py-2 text-gray-700 rounded-lg border border-gray-300 shadow-sm focus:ring-2 focus:ring-emerald-200"
+                value={newExpense.category}
+                onChange={(e) =>
+                  setNewExpense({ ...newExpense, category: e.target.value })
+                }
+              >
+                {[
+                  "Food",
+                  "Repair",
+                  "Commission",
+                  "Salary",
+                  "Advance",
+                  "Bhada",
+                  "Market Fee",
+                ].map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+              </select>
+
+              {/* Dynamic Fields */}
+              {["Food", "Repair"].includes(newExpense.category) && (
+                <input
+                  type="text"
+                  placeholder="Description"
+                  className="w-full px-3 py-2 text-gray-700 rounded-lg border border-gray-300 shadow-sm"
+                  value={newExpense.description}
+                  onChange={(e) =>
+                    setNewExpense({
+                      ...newExpense,
+                      description: e.target.value,
+                    })
+                  }
+                />
+              )}
+
+              {["Commission", "Salary", "Advance"].includes(
+                newExpense.category
+              ) && (
+                <input
+                  type="text"
+                  placeholder="Person Name"
+                  className="w-full px-3 py-2 text-gray-700 rounded-lg border border-gray-300 shadow-sm"
+                  value={newExpense.person}
+                  onChange={(e) =>
+                    setNewExpense({ ...newExpense, person: e.target.value })
+                  }
+                />
+              )}
+
+              {newExpense.category === "Bhada" && (
+                <>
+                  <input
+                    type="text"
+                    placeholder="Vehicle Number"
+                    className="w-full px-3 py-2 text-gray-700 rounded-lg border border-gray-300 shadow-sm"
+                    value={newExpense.vehicle}
+                    onChange={(e) =>
+                      setNewExpense({ ...newExpense, vehicle: e.target.value })
+                    }
+                  />
+                  <input
+                    type="text"
+                    placeholder="Modi / Supplier"
+                    className="w-full px-3 py-2 text-gray-700 rounded-lg border border-gray-300 shadow-sm"
+                    value={newExpense.modi}
+                    onChange={(e) =>
+                      setNewExpense({ ...newExpense, modi: e.target.value })
+                    }
+                  />
+                  <input
+                    type="text"
+                    placeholder="Item"
+                    className="w-full px-3 py-2 text-gray-700 rounded-lg border border-gray-300 shadow-sm"
+                    value={newExpense.item}
+                    onChange={(e) =>
+                      setNewExpense({ ...newExpense, item: e.target.value })
+                    }
+                  />
+                </>
+              )}
+
+              <input
+                type="number"
+                placeholder="Amount"
+                className="w-full px-3 py-2 text-gray-700 rounded-lg border border-gray-300 shadow-sm"
+                value={newExpense.amount}
+                onChange={(e) =>
+                  setNewExpense({ ...newExpense, amount: e.target.value })
+                }
+              />
+
+              <input
+                type="date"
+                className="w-full px-3 py-2 text-gray-700 rounded-lg border border-gray-300 shadow-sm"
+                value={newExpense.date}
+                onChange={(e) =>
+                  setNewExpense({ ...newExpense, date: e.target.value })
+                }
+              />
+            </div>
+
+            {/* Actions */}
+            <div className="flex justify-end gap-3 mt-5">
+              <button
+                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition"
+                onClick={() => setIsModalOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="px-4 py-2 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition"
+                onClick={handleSaveExpense}
+              >
+                Save
+              </button>
+            </div>
+          </motion.div>
+        </dialog>
+      )}
+    </div>
+  );
+};
+
+export default ExpensePage;
