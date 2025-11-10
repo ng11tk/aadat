@@ -1,57 +1,80 @@
 :root {
+  --color-primary: #646cff;
+  --color-primary-hover: #3b82f6; /* changed hover to Tailwind blue-500 */
+  --color-link-hover-light: #60a5fa; /* lighter blue for link hover */
+  --button-bg-light: #f9f9f9;
+
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  /* line-height: 1.5; */
   font-weight: 400;
+  /* support both schemes; the OS/media query will override visuals */
+  color-scheme: light dark;
+}
 
-  color-scheme: light;
-  color: rgba(255, 255, 255, 0.87);
-  /* background-color: #242424; */
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
+/* Base / resets */
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: inherit;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: #ffffff;
+  color: #1f2937; /* gray-800 */
 }
 
+/* Links */
 a {
   font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
+  color: var(--color-primary);
+  text-decoration: none;
 }
+
 a:hover {
-  color: #535bf2;
+  color: var(--color-primary-hover);
 }
 
-/* body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
-} */
-
+/* Headings */
 h1 {
-  font-size: 3.2em;
+  font-size: 3.2rem;
   line-height: 1.1;
 }
 
+/* Buttons */
 button:hover {
-  border-color: #646cff;
+  border-color: var(--color-primary);
 }
+
 button:focus,
 button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
+  outline-color: var(--color-primary);
 }
 
-@media (prefers-color-scheme: light) {
+/* Dark-mode support using prefers-color-scheme */
+@media (prefers-color-scheme: dark) {
   :root {
-    color: #213547;
-    background-color: #ffffff;
+    /* tweak variables for dark mode */
+    --color-primary: #60a5fa; /* primary uses blue-400 for clarity on dark */
+    --color-primary-hover: #3b82f6; /* hover uses blue-500 for stronger contrast */
+    --color-link-hover-light: #93c5fd; /* link hover (lighter) */
+    --button-bg-light: #111827; /* darker button background (gray-900) */
   }
+
+  html, body {
+    background-color: #0b1220; /* very dark blue */
+    color: #e5e7eb; /* gray-200 */
+  }
+
+  a {
+    color: var(--color-primary);
+  }
+
   a:hover {
-    color: #747bff;
+    color: var(--color-primary-hover);
   }
+
   button {
-    background-color: #f9f9f9;
+    background-color: var(--button-bg-light);
+    color: #e5e7eb;
+    border-color: rgba(255,255,255,0.06);
   }
 }
