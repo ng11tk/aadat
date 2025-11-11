@@ -2,6 +2,10 @@ import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Plus } from "lucide-react";
 import { motion } from "framer-motion";
+import { useMutation, useQuery } from "@apollo/client/react";
+import { INSERT_SUPPLIER } from "../../graphql/mutation";
+import { promiseResolver } from "../../utils/promisResolver";
+import { FETCH_SUPPLIERS } from "../../graphql/query";
 
 const formatDate = (date) => date.toISOString().split("T")[0];
 
@@ -11,11 +15,15 @@ const SupplierDashboard = () => {
   const [fromDate, setFromDate] = useState(
     formatDate(new Date(today.getFullYear(), today.getMonth(), 1))
   );
+  const [supplierFromDatabase, setSuppliersFromDatabase] = useState([]);
+  console.log(
+    "🚀 ~ SupplierDashboard ~ supplierFromDatabase:",
+    supplierFromDatabase
+  );
   const [toDate, setToDate] = useState(formatDate(today));
   const [supplierFilter, setSupplierFilter] = useState("");
   const [filterMode, setFilterMode] = useState("thisMonth");
   const [statusFilter, setStatusFilter] = useState("all"); // new filter
-
   const [suppliers, setSuppliers] = useState([
     {
       id: 1,
@@ -45,7 +53,6 @@ const SupplierDashboard = () => {
       date: "2025-09-10",
     },
   ]);
-
   const location = useLocation();
 
   // --- Modal state ---
@@ -57,6 +64,24 @@ const SupplierDashboard = () => {
     paid: "",
     type: "Cash",
   });
+
+  // fetch suppliers
+
+  const {
+    error,
+    data: { supplier_supplier: supplier_supplier = [] } = {},
+    loading,
+  } = useQuery(FETCH_SUPPLIERS);
+
+  // update suppliers state when data changes
+  useEffect(() => {
+    if (supplier_supplier && supplier_supplier.length > 0) {
+      setSuppliersFromDatabase(supplier_supplier);
+    }
+  }, [supplier_supplier]);
+
+  // mutation in data from purchase page
+  const [insertSupplier] = useMutation(INSERT_SUPPLIER);
 
   useEffect(() => {
     if (location.state?.newPurchase) {
@@ -131,8 +156,9 @@ const SupplierDashboard = () => {
   const totalDue = totalAmount - totalPaid;
 
   // --- Save new supplier ---
-  const handleSaveSupplier = () => {
-    if (!newSupplier.supplier || !newSupplier.total) return;
+  const handleSaveSupplier = async () => {
+    if (!newSupplier.supplier || !newSupplier.contact) return;
+
     setSuppliers((prev) => [
       ...prev,
       {
@@ -143,6 +169,25 @@ const SupplierDashboard = () => {
         date: formatDate(today),
       },
     ]);
+
+    // Insert supplier into database
+    const [insertSupplierData, insertSupplierError] = await promiseResolver(
+      insertSupplier({
+        variables: {
+          object: {
+            name: newSupplier.supplier,
+            phone: Number(newSupplier.contact),
+          },
+        },
+      })
+    );
+
+    if (insertSupplierError) {
+      console.error("Error inserting supplier:", insertSupplierError);
+    } else {
+      console.log("Inserted supplier:", insertSupplierData);
+    }
+
     setNewSupplier({
       supplier: "",
       contact: "",
@@ -153,6 +198,7 @@ const SupplierDashboard = () => {
     setIsModalOpen(false);
   };
 
+  if (loading) return <p>Loading...</p>;
   return (
     <div className="p-6 bg-gray-50 min-h-screen text-gray-900">
       {/* Header */}

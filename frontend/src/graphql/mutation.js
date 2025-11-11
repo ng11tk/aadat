@@ -31,3 +31,11 @@ export const INSERT_UNLOADING_REMAINING_ITEM = gql`
     }
   }
 `;
+
+export const INSERT_SUPPLIER = gql`
+  mutation INSERT_SUPPLIER($object: supplier_supplier_insert_input = {}) {
+  insert_supplier_supplier_one(object: $object) {
+    id
+  }
+  }
+`;

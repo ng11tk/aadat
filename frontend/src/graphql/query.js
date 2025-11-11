@@ -70,3 +70,12 @@ export const GET_ALL_OPENING_REMAINING_ITEMS = gql`
     }
   }
 `;
+
+export const FETCH_SUPPLIERS = gql`
+  query FETCH_SUPPLIERS($where: supplier_supplier_bool_exp = {}) {
+  supplier_supplier(where: $where) {
+    id
+    name
+  }
+}
+`;

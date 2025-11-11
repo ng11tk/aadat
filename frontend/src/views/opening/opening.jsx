@@ -168,6 +168,14 @@ const OpeningStock = () => {
           },
         })),
       },
+      supplier_unloading: {
+        data: {
+          supplier_name: item.name,
+          amount: item.amount_paid,
+          remaining_amount: item.amount_paid - item.advance,
+          payment_status: "pending",
+        },
+      },
     };
 
     try {
@@ -371,15 +379,17 @@ const OpeningStock = () => {
       )}
 
       {/* Modal */}
-      <AnimatePresence>
-        <AddItemModal
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          onAdd={handleAddItem}
-          newItem={newItem}
-          setNewItem={setNewItem}
-        />
-      </AnimatePresence>
+      {isModalOpen && (
+        <AnimatePresence>
+          <AddItemModal
+            isOpen={isModalOpen}
+            onClose={() => setIsModalOpen(false)}
+            onAdd={handleAddItem}
+            newItem={newItem}
+            setNewItem={setNewItem}
+          />
+        </AnimatePresence>
+      )}
     </div>
   );
 };

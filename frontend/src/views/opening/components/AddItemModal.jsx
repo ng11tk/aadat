@@ -1,9 +1,25 @@
 // eslint-disable-next-line no-unused-vars
+import { useQuery } from "@apollo/client/react";
 import { motion } from "framer-motion";
 import { Plus, Trash2, Package } from "lucide-react";
+import { FETCH_SUPPLIERS } from "../../../graphql/query";
+import { useEffect, useState } from "react";
 
-const AddItemModal = ({ isOpen, onClose, onAdd, newItem, setNewItem }) => {
-  if (!isOpen) return null;
+const AddItemModal = ({ onClose, onAdd, newItem, setNewItem }) => {
+  const [suppliers, setSuppliers] = useState([]);
+  // fetch supplier list from database
+  const {
+    error,
+    data: { supplier_supplier: supplier_supplier = [] } = {},
+    loading,
+  } = useQuery(FETCH_SUPPLIERS);
+
+  // update suppliers state when data changes
+  useEffect(() => {
+    if (supplier_supplier && supplier_supplier.length > 0) {
+      setSuppliers(supplier_supplier);
+    }
+  }, [supplier_supplier]);
 
   const handleAddMoreItem = () => {
     setNewItem({
@@ -15,6 +31,7 @@ const AddItemModal = ({ isOpen, onClose, onAdd, newItem, setNewItem }) => {
           rate: 10,
           quantity: 10,
           unit: "quintal",
+          isSellable: true,
         },
       ],
     });
@@ -31,9 +48,18 @@ const AddItemModal = ({ isOpen, onClose, onAdd, newItem, setNewItem }) => {
     setNewItem({ ...newItem, unloading_items: updatedItems });
   };
 
-  const handleChange = (field, value) => {
-    setNewItem({ ...newItem, [field]: value });
+  const handleChange = (field, value, supplier_id) => {
+    setNewItem({ ...newItem, [field]: value, supplier_id: supplier_id });
   };
+
+  if (loading) {
+    return (
+      <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+        {" "}
+        Loading...
+      </div>
+    );
+  }
 
   return (
     <motion.div
@@ -94,22 +120,25 @@ const AddItemModal = ({ isOpen, onClose, onAdd, newItem, setNewItem }) => {
                 <label className="block text-sm font-medium text-gray-600 mb-1">
                   {newItem.type === "supplier" ? "Supplier Name" : "Modi Name"}
                 </label>
-                <input
-                  type="text"
+                <select
+                  value={newItem.name}
                   placeholder={`Enter ${
                     newItem.type === "supplier" ? "supplier" : "modi"
                   } name`}
-                  value={
-                    newItem.type === "supplier" ? newItem.name : newItem.name
-                  }
-                  onChange={(e) =>
-                    handleChange(
-                      newItem.type === "supplier" ? "name" : "name",
-                      e.target.value
-                    )
-                  }
+                  onChange={(e) => {                    
+                    return handleChange("name", e.target.value);
+                  }}
                   className="w-full border border-gray-300 rounded-lg p-3 text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                />
+                >
+                  <option value="">
+                    Select {newItem.type === "supplier" ? "Supplier" : "Modi"}
+                  </option>
+                  {suppliers.map((supplier) => (
+                    <option key={supplier.id} value={supplier.name}>
+                      {supplier.name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* Amount Paid / Advance */}
