@@ -73,9 +73,29 @@ export const GET_ALL_OPENING_REMAINING_ITEMS = gql`
 
 export const FETCH_SUPPLIERS = gql`
   query FETCH_SUPPLIERS($where: supplier_supplier_bool_exp = {}) {
-  supplier_supplier(where: $where) {
-    id
-    name
+    supplier_supplier(where: $where) {
+      id
+      name
+    }
   }
-}
+`;
+
+export const FETCH_SUPPLIERS_AGGREGATE = gql`
+  query FETCH_SUPPLIERS_AGGREGATE(
+    $whereSupplierUnloading: supplier_supplier_unloading_bool_exp = {}
+    $whereSupplier: supplier_supplier_bool_exp = {}
+  ) {
+    supplier_supplier(where: $whereSupplier) {
+      id
+      name
+      supplier_unloadings_aggregate(where: $whereSupplierUnloading) {
+        aggregate {
+          sum {
+            amount
+            remaining_amount
+          }
+        }
+      }
+    }
+  }
 `;

@@ -174,6 +174,7 @@ const OpeningStock = () => {
           amount: item.amount_paid,
           remaining_amount: item.amount_paid - item.advance,
           payment_status: "pending",
+          unloading_date: new Date().toISOString().split("T")[0],
         },
       },
     };

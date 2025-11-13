@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Plus } from "lucide-react";
 import { motion } from "framer-motion";
 import { useMutation, useQuery } from "@apollo/client/react";
 import { INSERT_SUPPLIER } from "../../graphql/mutation";
 import { promiseResolver } from "../../utils/promisResolver";
-import { FETCH_SUPPLIERS } from "../../graphql/query";
+import { FETCH_SUPPLIERS_AGGREGATE } from "../../graphql/query";
 
 const formatDate = (date) => date.toISOString().split("T")[0];
 
@@ -16,44 +16,10 @@ const SupplierDashboard = () => {
     formatDate(new Date(today.getFullYear(), today.getMonth(), 1))
   );
   const [supplierFromDatabase, setSuppliersFromDatabase] = useState([]);
-  console.log(
-    "🚀 ~ SupplierDashboard ~ supplierFromDatabase:",
-    supplierFromDatabase
-  );
   const [toDate, setToDate] = useState(formatDate(today));
   const [supplierFilter, setSupplierFilter] = useState("");
   const [filterMode, setFilterMode] = useState("thisMonth");
   const [statusFilter, setStatusFilter] = useState("all"); // new filter
-  const [suppliers, setSuppliers] = useState([
-    {
-      id: 1,
-      supplier: "Supplier X",
-      contact: "9876543210",
-      total: 5000,
-      paid: 5000,
-      type: "Cash",
-      date: "2025-09-15",
-    },
-    {
-      id: 2,
-      supplier: "Supplier Y",
-      contact: "9123456780",
-      total: 7500,
-      paid: 5000,
-      type: "Credit",
-      date: "2025-09-16",
-    },
-    {
-      id: 3,
-      supplier: "Supplier Z",
-      contact: "9988776655",
-      total: 6000,
-      paid: 0,
-      type: "Cash",
-      date: "2025-09-10",
-    },
-  ]);
-  const location = useLocation();
 
   // --- Modal state ---
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -66,32 +32,69 @@ const SupplierDashboard = () => {
   });
 
   // fetch suppliers
+  // build where clause for supplier_unloadings aggregation depending on statusFilter
+  const buildWhereSupplierUnloading = () => {
+    const base = { unloading_date: { _gte: fromDate, _lte: "2025-11-13" } };
+    if (statusFilter === "paid") {
+      // include only unloadings that are fully paid (remaining_amount = 0)
+      return { ...base, remaining_amount: { _eq: 0 } };
+    }
+    if (statusFilter === "unpaid") {
+      // include unloadings with remaining amount greater than 0 (unpaid or partial)
+      return { ...base, remaining_amount: { _gt: 0 } };
+    }
+    if (statusFilter === "partial") {
+      // partial also maps to remaining_amount > 0 (server cannot easily distinguish paid==0 vs partial without cross-field compare)
+      return { ...base, remaining_amount: { _gt: 0 } };
+    }
+    // default: all unloadings in date range
+    return base;
+  };
+
+  const whereSupplierUnloading = buildWhereSupplierUnloading();
+  console.log(
+    "🚀 ~ SupplierDashboard ~ whereSupplierUnloading:",
+    whereSupplierUnloading
+  );
 
   const {
     error,
     data: { supplier_supplier: supplier_supplier = [] } = {},
     loading,
-  } = useQuery(FETCH_SUPPLIERS);
+    refetch,
+  } = useQuery(FETCH_SUPPLIERS_AGGREGATE, {
+    variables: {
+      whereSupplier: {
+        supplier_unloadings: whereSupplierUnloading,
+        // name: { _ilike: `%${supplierFilter}%` },
+        //todo: add debounce logic if needed
+      },
+    },
+    fetchPolicy: "network-only",
+  });
 
   // update suppliers state when data changes
   useEffect(() => {
     if (supplier_supplier && supplier_supplier.length > 0) {
-      setSuppliersFromDatabase(supplier_supplier);
+      const formattedSuppliers = supplier_supplier.map((s) => ({
+        id: s.id,
+        supplier: s.name,
+        total: s.supplier_unloadings_aggregate.aggregate.sum.amount || 0,
+        paid:
+          s.supplier_unloadings_aggregate.aggregate.sum.remaining_amount || 0,
+        contact: s.phone,
+        type: "Cash",
+      }));
+      setSuppliersFromDatabase(formattedSuppliers);
+    } else {
+      setSuppliersFromDatabase([]);
     }
   }, [supplier_supplier]);
 
   // mutation in data from purchase page
   const [insertSupplier] = useMutation(INSERT_SUPPLIER);
-
-  useEffect(() => {
-    if (location.state?.newPurchase) {
-      setSuppliers((prev) => [
-        ...prev,
-        { id: Date.now(), ...location.state.newPurchase },
-      ]);
-      window.history.replaceState({}, document.title);
-    }
-  }, [location.state]);
+  // server returns aggregated totals per supplier (supplierFromDatabase is already that)
+  const suppliersList = supplierFromDatabase || [];
 
   // --- Filters ---
   const applyQuickFilter = (mode) => {
@@ -113,79 +116,24 @@ const SupplierDashboard = () => {
     }
   };
 
-  // Group by supplier
-  const supplierTotals = suppliers
-    .filter((p) => {
-      const d = new Date(p.date);
-      return d >= new Date(fromDate) && d <= new Date(toDate);
-    })
-    .reduce((acc, purchase) => {
-      if (!acc[purchase.supplier]) {
-        acc[purchase.supplier] = {
-          supplier: purchase.supplier,
-          contact: purchase.contact,
-          total: 0,
-          paid: 0,
-          type: purchase.type,
-        };
-      }
-      acc[purchase.supplier].total += purchase.total;
-      acc[purchase.supplier].paid += purchase.paid;
-      return acc;
-    }, {});
-
-  const suppliersList = Object.values(supplierTotals);
-
-  // --- Apply filters ---
-  const filteredSuppliers = suppliersList
-    .filter((p) =>
-      p.supplier.toLowerCase().includes(supplierFilter.toLowerCase())
-    )
-    .filter((p) => {
-      const due = p.total - p.paid;
-      if (statusFilter === "all") return true;
-      if (statusFilter === "paid") return due === 0;
-      if (statusFilter === "unpaid") return p.paid === 0;
-      if (statusFilter === "partial") return p.paid > 0 && due > 0;
-      return true;
-    });
-
-  // --- Summary Totals ---
-  const totalAmount = filteredSuppliers.reduce((sum, s) => sum + s.total, 0);
-  const totalPaid = filteredSuppliers.reduce((sum, s) => sum + s.paid, 0);
-  const totalDue = totalAmount - totalPaid;
-
   // --- Save new supplier ---
   const handleSaveSupplier = async () => {
     if (!newSupplier.supplier || !newSupplier.contact) return;
 
-    setSuppliers((prev) => [
-      ...prev,
-      {
-        id: Date.now(),
-        ...newSupplier,
-        total: Number(newSupplier.total),
-        paid: Number(newSupplier.paid) || 0,
-        date: formatDate(today),
-      },
-    ]);
-
-    // Insert supplier into database
-    const [insertSupplierData, insertSupplierError] = await promiseResolver(
-      insertSupplier({
+    // Insert supplier into database and refetch suppliers query
+    try {
+      await insertSupplier({
         variables: {
           object: {
             name: newSupplier.supplier,
             phone: Number(newSupplier.contact),
           },
         },
-      })
-    );
-
-    if (insertSupplierError) {
-      console.error("Error inserting supplier:", insertSupplierError);
-    } else {
-      console.log("Inserted supplier:", insertSupplierData);
+        refetchQueries: [{ query: FETCH_SUPPLIERS_AGGREGATE }],
+      });
+      console.log("Inserted supplier and refetched suppliers.");
+    } catch (err) {
+      console.error("Error inserting supplier:", err);
     }
 
     setNewSupplier({
@@ -197,6 +145,16 @@ const SupplierDashboard = () => {
     });
     setIsModalOpen(false);
   };
+
+  const totalAmount = supplierFromDatabase.reduce(
+    (sum, supplier) => sum + supplier.total,
+    0
+  );
+  const totalPaid = supplierFromDatabase.reduce(
+    (sum, supplier) => sum + (supplier.total - supplier.paid),
+    0
+  );
+  const totalDue = totalAmount - totalPaid;
 
   if (loading) return <p>Loading...</p>;
   return (
@@ -307,11 +265,11 @@ const SupplierDashboard = () => {
 
       {/* Supplier Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredSuppliers.length === 0 ? (
+        {supplierFromDatabase.length === 0 ? (
           <p className="text-gray-500 italic">No suppliers found</p>
         ) : (
-          filteredSuppliers.map((p) => {
-            const due = p.total - p.paid;
+          supplierFromDatabase.map((p) => {
+            const due = p.paid;
             const status =
               due === 0 ? "paid" : p.paid === 0 ? "unpaid" : "partial";
 
@@ -348,11 +306,11 @@ const SupplierDashboard = () => {
                         : "badge-error"
                     }`}
                   >
-                    {status}
+                    {status.toUpperCase()}
                   </span>
                 </div>
                 <p className="text-sm text-gray-600">Total: ₹{p.total}</p>
-                <p className="text-sm text-gray-600">Paid: ₹{p.paid}</p>
+                <p className="text-sm text-gray-600">Paid: ₹{p.total - due}</p>
                 <p className="text-sm text-gray-600">Due: ₹{due}</p>
                 <p className="text-xs text-gray-400 italic">Type: {p.type}</p>
               </motion.div>
