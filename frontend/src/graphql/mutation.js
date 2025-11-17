@@ -34,8 +34,18 @@ export const INSERT_UNLOADING_REMAINING_ITEM = gql`
 
 export const INSERT_SUPPLIER = gql`
   mutation INSERT_SUPPLIER($object: supplier_supplier_insert_input = {}) {
-  insert_supplier_supplier_one(object: $object) {
-    id
+    insert_supplier_supplier_one(object: $object) {
+      id
+    }
   }
+`;
+
+export const INSERT_SUPPLIER_TRANSACTION = gql`
+  mutation INSERT_SUPPLIER_TRANSACTION(
+    $objects: [supplier_supplier_transaction_insert_input!] = {}
+  ) {
+    insert_supplier_supplier_transaction(objects: $objects) {
+      affected_rows
+    }
   }
 `;

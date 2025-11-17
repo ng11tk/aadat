@@ -34,7 +34,7 @@ const SupplierDashboard = () => {
   // fetch suppliers
   // build where clause for supplier_unloadings aggregation depending on statusFilter
   const buildWhereSupplierUnloading = () => {
-    const base = { unloading_date: { _gte: fromDate, _lte: "2025-11-13" } };
+    const base = { unloading_date: { _gte: fromDate, _lte: toDate } };
     if (statusFilter === "paid") {
       // include only unloadings that are fully paid (remaining_amount = 0)
       return { ...base, remaining_amount: { _eq: 0 } };
@@ -52,10 +52,6 @@ const SupplierDashboard = () => {
   };
 
   const whereSupplierUnloading = buildWhereSupplierUnloading();
-  console.log(
-    "🚀 ~ SupplierDashboard ~ whereSupplierUnloading:",
-    whereSupplierUnloading
-  );
 
   const {
     error,
@@ -86,8 +82,6 @@ const SupplierDashboard = () => {
         type: "Cash",
       }));
       setSuppliersFromDatabase(formattedSuppliers);
-    } else {
-      setSuppliersFromDatabase([]);
     }
   }, [supplier_supplier]);
 

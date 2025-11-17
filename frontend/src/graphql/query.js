@@ -88,11 +88,49 @@ export const FETCH_SUPPLIERS_AGGREGATE = gql`
     supplier_supplier(where: $whereSupplier) {
       id
       name
+      phone
+      address
+      type
       supplier_unloadings_aggregate(where: $whereSupplierUnloading) {
         aggregate {
           sum {
             amount
             remaining_amount
+          }
+        }
+      }
+    }
+  }
+`;
+
+export const FETCH_SUPPLIER_DETAILS = gql`
+  query FETCH_SUPPLIER_DETAILS($where: supplier_supplier_bool_exp = {}) {
+    supplier_supplier(where: $where) {
+      id
+      name
+      phone
+      address
+      supplier_unloadings_aggregate(where: {}) {
+        aggregate {
+          sum {
+            amount
+            remaining_amount
+          }
+        }
+        nodes {
+          id
+          amount
+          payment_status
+          remaining_amount
+          unloading_date
+          unloading {
+            unloading_items {
+              id
+              name
+              quantity
+              rate
+              unit
+            }
           }
         }
       }

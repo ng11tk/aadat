@@ -1,43 +1,18 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useLocation } from "react-router-dom";
+import { FETCH_SUPPLIER_DETAILS } from "../../graphql/query";
+import { useMutation, useQuery } from "@apollo/client/react";
+import { INSERT_SUPPLIER_TRANSACTION } from "../../graphql/mutation";
+import { promiseResolver } from "../../utils/promisResolver";
 
 const formatDate = (date) => date.toISOString().split("T")[0];
 
 const SupplierDetails = () => {
   const today = new Date();
-
-  const supplier = {
-    id: 1,
-    name: "Nitin Traders",
-    contact: "1234567890",
-    totalSale: 15000,
-    totalDue: 5000,
-    totalAdvance: 2000,
-    transactions: [
-      {
-        id: 1,
-        date: "2025-09-05",
-        total: 3000,
-        due: 0,
-        items: [{ name: "Item A", qty: 2, rate: 1000 }],
-      },
-      {
-        id: 2,
-        date: "2025-09-10",
-        total: 5000,
-        due: 2000,
-        items: [{ name: "Item B", qty: 5, rate: 1000 }],
-      },
-      {
-        id: 3,
-        date: "2025-09-12",
-        total: 7000,
-        due: 2000,
-        items: [{ name: "Item C", qty: 7, rate: 1000 }],
-      },
-    ],
-  };
-
+  const location = useLocation();
+  const suppliers = location.state?.supplier || [];
+  const [supplier, setSupplier] = useState<any>({});
   const [selectedTransactions, setSelectedTransactions] = useState({});
   const [modalTransaction, setModalTransaction] = useState(null);
   const [filterMode, setFilterMode] = useState("thisMonth");
@@ -47,7 +22,58 @@ const SupplierDetails = () => {
   );
   const [toDate, setToDate] = useState(formatDate(today));
 
-  const applyQuickFilter = (mode) => {
+  const [insertSupplierTransactions] = useMutation(INSERT_SUPPLIER_TRANSACTION);
+
+  // fetch supplier details
+  const {
+    error,
+    data: { supplier_supplier: supplier_supplier = [] } = {},
+    loading,
+    refetch,
+  } = useQuery(FETCH_SUPPLIER_DETAILS, {
+    variables: {
+      where: {
+        id: { _eq: suppliers.id },
+      },
+    },
+    fetchPolicy: "network-only",
+  });
+
+  // update supplier state when data changes
+  useEffect(() => {
+    if (supplier_supplier && supplier_supplier.length > 0) {
+      const s = supplier_supplier[0];
+      const formattedSupplier = {
+        id: s.id,
+        name: s.name,
+        contact: s.phone,
+        address: s.address,
+        totalSale: s.supplier_unloadings_aggregate?.aggregate?.sum?.amount || 0,
+        totalDue:
+          s.supplier_unloadings_aggregate?.aggregate?.sum?.remaining_amount ||
+          0,
+        totalAdvance: 2000,
+        transactions: s?.supplier_unloadings_aggregate?.nodes.map((t: any) => ({
+          id: t.id,
+          date: t.unloading_date,
+          total: t.amount,
+          due: t.remaining_amount,
+          payment_status: t.payment_status,
+          items: t.unloading.unloading_items.map((item: any) => ({
+            id: item.id,
+            name: item.item_name,
+            qty: item.quantity,
+            rate: item.rate,
+            unit: item.unit,
+          })),
+        })),
+      };
+
+      setSupplier(formattedSupplier);
+    }
+  }, [supplier_supplier]);
+
+  const applyQuickFilter = (mode: string) => {
     setFilterMode(mode);
     if (mode === "today") {
       const d = formatDate(today);
@@ -67,7 +93,7 @@ const SupplierDetails = () => {
   };
 
   // ✅ Filter by date + status
-  const filteredTransactions = supplier.transactions.filter((t) => {
+  const filteredTransactions = supplier?.transactions?.filter((t: any) => {
     const d = new Date(t.date);
     const withinDate = d >= new Date(fromDate) && d <= new Date(toDate);
     const statusMatch =
@@ -77,12 +103,12 @@ const SupplierDetails = () => {
     return withinDate && statusMatch;
   });
 
-  const updateTransaction = (id, mode, amount = 0) => {
-    const t = supplier.transactions.find((tr) => tr.id === id);
+  const updateTransaction = (id: any, mode: any, amount: number = 0) => {
+    const t = supplier?.transactions?.find((tr: any) => tr.id === id);
     if (!t || t.due === 0) return;
-    setSelectedTransactions((prev) => {
+    setSelectedTransactions((prev: any) => {
       if (prev[id]?.mode === mode) {
-        const newObj = { ...prev };
+        const newObj: any = { ...prev };
         delete newObj[id];
         return newObj;
       }
@@ -94,21 +120,43 @@ const SupplierDetails = () => {
   };
 
   const totalSelectedAmount = Object.values(selectedTransactions).reduce(
-    (sum, t) => sum + (t.amount || 0),
+    (sum: number, t: any) => sum + (t.amount || 0),
     0
   );
 
-  const savePartial = (id, amount, due) => {
+  const savePartial = (id: any, amount: any, due: any) => {
     if (!amount || amount <= 0) return;
     if (amount >= due) {
       updateTransaction(id, "full");
     } else {
-      setSelectedTransactions((prev) => ({
+      setSelectedTransactions((prev: any) => ({
         ...prev,
         [id]: { ...prev[id], mode: "partial", amount, finalized: true },
       }));
     }
   };
+
+  const handleUpdateSupplierPayments = async () => {
+    const output = Object.entries(selectedTransactions).map(([id, value]) => {
+      return { supplier_unloading_id: id, amount: value.amount };
+    });
+
+    const [data, error] = await promiseResolver(
+      insertSupplierTransactions({
+        variables: { objects: output },
+      })
+    );
+    if (error) {
+      console.error("Error inserting supplier transactions:", error);
+      return;
+    }
+    setSelectedTransactions({});
+    refetch();
+  };
+
+  if (loading) {
+    return <div className="p-6">Loading...</div>;
+  }
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen text-gray-900">
@@ -205,7 +253,7 @@ const SupplierDetails = () => {
 
       {/* Transactions Grid */}
       <div className="grid md:grid-cols-3 gap-4">
-        {filteredTransactions.map((t) => {
+        {filteredTransactions?.map((t) => {
           const info = selectedTransactions[t.id] || {
             mode: "full",
             amount: t.due,
@@ -328,7 +376,12 @@ const SupplierDetails = () => {
           <span className="text-xl font-bold text-indigo-600">
             ₹{totalSelectedAmount}
           </span>
-          <button className="btn btn-primary">Confirm Payment</button>
+          <button
+            className="btn btn-primary"
+            onClick={handleUpdateSupplierPayments}
+          >
+            Confirm Payment
+          </button>
         </div>
       )}
 
