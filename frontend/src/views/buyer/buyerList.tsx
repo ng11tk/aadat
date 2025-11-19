@@ -1,97 +1,51 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus } from "lucide-react";
 import { motion } from "framer-motion";
-import { useMutation, useQuery } from "@apollo/client/react";
-import { INSERT_SUPPLIER } from "../../graphql/mutation";
-import { promiseResolver } from "../../utils/promisResolver";
-import { FETCH_SUPPLIERS_AGGREGATE } from "../../graphql/query";
 
-const formatDate = (date) => date.toISOString().split("T")[0];
+const formatDate = (date: Date) => date.toISOString().split("T")[0];
 
-const SupplierDashboard = () => {
+const BuyerDashboard = () => {
   const navigate = useNavigate();
   const today = new Date();
   const [fromDate, setFromDate] = useState(
     formatDate(new Date(today.getFullYear(), today.getMonth(), 1))
   );
-  const [supplierFromDatabase, setSuppliersFromDatabase] = useState([]);
   const [toDate, setToDate] = useState(formatDate(today));
-  const [supplierFilter, setSupplierFilter] = useState("");
+  const [buyerFilter, setBuyerFilter] = useState("");
   const [filterMode, setFilterMode] = useState("thisMonth");
-  const [statusFilter, setStatusFilter] = useState("all"); // new filter
+  const [buyers, setBuyers] = useState<any[]>([]);
 
-  // --- Modal state ---
+  // modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newSupplier, setNewSupplier] = useState({
-    supplier: "",
-    contact: "",
-    total: "",
-    paid: "",
-    type: "Cash",
-  });
+  const [newBuyer, setNewBuyer] = useState({ name: "", contact: "" });
 
-  // fetch suppliers
-  // build where clause for supplier_unloadings aggregation depending on statusFilter
-  const buildWhereSupplierUnloading = () => {
-    const base = { unloading_date: { _gte: fromDate, _lte: toDate } };
-    if (statusFilter === "paid") {
-      // include only unloadings that are fully paid (remaining_amount = 0)
-      return { ...base, remaining_amount: { _eq: 0 } };
-    }
-    if (statusFilter === "unpaid") {
-      // include unloadings with remaining amount greater than 0 (unpaid or partial)
-      return { ...base, remaining_amount: { _gt: 0 } };
-    }
-    if (statusFilter === "partial") {
-      // partial also maps to remaining_amount > 0 (server cannot easily distinguish paid==0 vs partial without cross-field compare)
-      return { ...base, remaining_amount: { _gt: 0 } };
-    }
-    // default: all unloadings in date range
-    return base;
-  };
-
-  const whereSupplierUnloading = buildWhereSupplierUnloading();
-
-  const {
-    error,
-    data: { supplier_supplier: supplier_supplier = [] } = {},
-    loading,
-    refetch,
-  } = useQuery(FETCH_SUPPLIERS_AGGREGATE, {
-    variables: {
-      whereSupplier: {
-        supplier_unloadings: whereSupplierUnloading,
-        // name: { _ilike: `%${supplierFilter}%` },
-        //todo: add debounce logic if needed
-      },
-    },
-    fetchPolicy: "network-only",
-  });
-
-  // update suppliers state when data changes
+  // load buyers from localStorage if available, otherwise sample data
   useEffect(() => {
-    if (supplier_supplier && supplier_supplier.length > 0) {
-      const formattedSuppliers = supplier_supplier.map((s) => ({
-        id: s.id,
-        supplier: s.name,
-        total: s.supplier_unloadings_aggregate.aggregate.sum.amount || 0,
-        paid:
-          s.supplier_unloadings_aggregate.aggregate.sum.remaining_amount || 0,
-        contact: s.phone,
-        type: "Cash",
-      }));
-      setSuppliersFromDatabase(formattedSuppliers);
+    try {
+      const stored = localStorage.getItem("buyers");
+      if (stored) {
+        setBuyers(JSON.parse(stored));
+        return;
+      }
+    } catch (err) {
+      // ignore
     }
-  }, [supplier_supplier]);
 
-  // mutation in data from purchase page
-  const [insertSupplier] = useMutation(INSERT_SUPPLIER);
-  // server returns aggregated totals per supplier (supplierFromDatabase is already that)
-  const suppliersList = supplierFromDatabase || [];
+    // fallback sample
+    setBuyers([
+      { id: 1, name: "Buyer A", total: 1200, paid: 800, contact: "123456" },
+      { id: 2, name: "Buyer B", total: 3400, paid: 1000, contact: "987654" },
+    ]);
+  }, []);
 
-  // --- Filters ---
-  const applyQuickFilter = (mode) => {
+  useEffect(() => {
+    try {
+      localStorage.setItem("buyers", JSON.stringify(buyers));
+    } catch (err) {}
+  }, [buyers]);
+
+  const applyQuickFilter = (mode: string) => {
     setFilterMode(mode);
     if (mode === "today") {
       const d = formatDate(today);
@@ -110,67 +64,49 @@ const SupplierDashboard = () => {
     }
   };
 
-  // --- Save new supplier ---
-  const handleSaveSupplier = async () => {
-    if (!newSupplier.supplier || !newSupplier.contact) return;
-
-    // Insert supplier into database and refetch suppliers query
-    try {
-      await insertSupplier({
-        variables: {
-          object: {
-            name: newSupplier.supplier,
-            phone: Number(newSupplier.contact),
-          },
-        },
-        refetchQueries: [{ query: FETCH_SUPPLIERS_AGGREGATE }],
-      });
-      console.log("Inserted supplier and refetched suppliers.");
-    } catch (err) {
-      console.error("Error inserting supplier:", err);
-    }
-
-    setNewSupplier({
-      supplier: "",
-      contact: "",
-      total: "",
-      paid: "",
-      type: "Cash",
-    });
+  const handleSaveBuyer = () => {
+    if (!newBuyer.name) return;
+    setBuyers((prev) => [
+      ...prev,
+      {
+        id: Date.now(),
+        name: newBuyer.name,
+        total: 0,
+        paid: 0,
+        contact: newBuyer.contact,
+      },
+    ]);
+    setNewBuyer({ name: "", contact: "" });
     setIsModalOpen(false);
   };
 
-  const totalAmount = supplierFromDatabase.reduce(
-    (sum, supplier) => sum + supplier.total,
-    0
-  );
-  const totalPaid = supplierFromDatabase.reduce(
-    (sum, supplier) => sum + (supplier.total - supplier.paid),
-    0
-  );
+  const totalAmount = buyers.reduce((sum, b) => sum + (b.total || 0), 0);
+  const totalPaid = buyers.reduce((sum, b) => sum + (b.paid || 0), 0);
   const totalDue = totalAmount - totalPaid;
 
-  if (loading) return <p>Loading...</p>;
+  const filtered = buyers.filter((b) =>
+    b.name.toLowerCase().includes(buyerFilter.toLowerCase())
+  );
+
   return (
     <div className="p-6 bg-gray-50 min-h-screen text-gray-900">
-      {/* Header */}
       <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
-        <h1 className="text-2xl font-bold text-gray-800">Supplier Dashboard</h1>
+        <h1 className="text-2xl font-bold text-gray-800">Buyer Dashboard</h1>
         <button
           onClick={() => setIsModalOpen(true)}
           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white font-semibold shadow hover:bg-indigo-700 transition"
         >
-          <Plus className="w-5 h-5" /> Add Supplier
+          <Plus className="w-5 h-5" /> Add Buyer
         </button>
       </div>
 
-      {/* --- Summary Strip --- */}
+      {/* Summary */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         <motion.div
           whileHover={{ y: -3 }}
           className="bg-white shadow rounded-xl p-5 border border-gray-200"
         >
-          <p className="text-gray-500 text-sm">Total Purchases</p>
+          <p className="text-gray-500 text-sm">Total Sales</p>
           <h2 className="text-xl font-bold text-indigo-600">₹{totalAmount}</h2>
         </motion.div>
 
@@ -213,7 +149,6 @@ const SupplierDashboard = () => {
           </button>
         ))}
 
-        {/* Custom Date Range */}
         {filterMode === "custom" && (
           <div className="flex gap-2">
             <input
@@ -233,43 +168,25 @@ const SupplierDashboard = () => {
 
         <input
           type="text"
-          placeholder="Search supplier"
-          value={supplierFilter}
-          onChange={(e) => setSupplierFilter(e.target.value)}
+          placeholder="Search buyer"
+          value={buyerFilter}
+          onChange={(e) => setBuyerFilter(e.target.value)}
           className="ml-auto px-3 py-2 border rounded-lg text-gray-700 bg-white shadow-sm w-64"
         />
       </div>
 
-      {/* Payment Status Filter */}
-      <div className="flex gap-2 mb-4">
-        {["all", "paid", "unpaid", "partial"].map((status) => (
-          <button
-            key={status}
-            onClick={() => setStatusFilter(status)}
-            className={`px-4 py-1 rounded-full text-sm font-medium transition ${
-              statusFilter === status
-                ? "bg-indigo-600 text-white"
-                : "bg-white border border-gray-300 text-gray-700 hover:bg-indigo-50"
-            }`}
-          >
-            {status.toUpperCase()}
-          </button>
-        ))}
-      </div>
-
-      {/* Supplier Cards */}
+      {/* Buyer Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {supplierFromDatabase.length === 0 ? (
-          <p className="text-gray-500 italic">No suppliers found</p>
+        {filtered.length === 0 ? (
+          <p className="text-gray-500 italic">No buyers found</p>
         ) : (
-          supplierFromDatabase.map((p) => {
-            const due = p.paid;
+          filtered.map((b) => {
+            const due = (b.total || 0) - (b.paid || 0);
             const status =
-              due === 0 ? "paid" : p.paid === 0 ? "unpaid" : "partial";
-
+              due === 0 ? "paid" : b.paid === 0 ? "unpaid" : "partial";
             return (
               <motion.div
-                key={p.supplier}
+                key={b.name}
                 whileHover={{
                   y: -3,
                   boxShadow: "0px 8px 18px rgba(0,0,0,0.08)",
@@ -282,14 +199,14 @@ const SupplierDashboard = () => {
                     : "bg-red-50 border-red-200"
                 }`}
                 onClick={() =>
-                  navigate(`/suppliers/${encodeURIComponent(p.supplier)}`, {
-                    state: { supplier: p },
+                  navigate(`/buyers/${encodeURIComponent(b.name)}`, {
+                    state: { buyer: b },
                   })
                 }
               >
                 <div className="flex justify-between items-center">
                   <h2 className="text-lg font-semibold text-gray-800">
-                    {p.supplier}
+                    {b.name}
                   </h2>
                   <span
                     className={`badge text-white ${
@@ -303,38 +220,40 @@ const SupplierDashboard = () => {
                     {status.toUpperCase()}
                   </span>
                 </div>
-                <p className="text-sm text-gray-600">Total: ₹{p.total}</p>
-                <p className="text-sm text-gray-600">Paid: ₹{p.total - due}</p>
+                <p className="text-sm text-gray-600">Total: ₹{b.total}</p>
+                <p className="text-sm text-gray-600">Paid: ₹{b.paid}</p>
                 <p className="text-sm text-gray-600">Due: ₹{due}</p>
-                <p className="text-xs text-gray-400 italic">Type: {p.type}</p>
+                <p className="text-xs text-gray-400 italic">
+                  Contact: {b.contact}
+                </p>
               </motion.div>
             );
           })
         )}
       </div>
 
-      {/* Add Supplier Modal */}
+      {/* Add Buyer Modal */}
       {isModalOpen && (
         <dialog open className="modal modal-open">
           <div className="modal-box max-w-md">
-            <h3 className="font-bold text-lg mb-4">Add New Supplier</h3>
+            <h3 className="font-bold text-lg mb-4">Add New Buyer</h3>
             <div className="space-y-3">
               <input
                 type="text"
-                placeholder="Supplier Name"
+                placeholder="Buyer Name"
                 className="input input-bordered w-full"
-                value={newSupplier.supplier}
+                value={newBuyer.name}
                 onChange={(e) =>
-                  setNewSupplier({ ...newSupplier, supplier: e.target.value })
+                  setNewBuyer({ ...newBuyer, name: e.target.value })
                 }
               />
               <input
                 type="text"
                 placeholder="Contact"
                 className="input input-bordered w-full"
-                value={newSupplier.contact}
+                value={newBuyer.contact}
                 onChange={(e) =>
-                  setNewSupplier({ ...newSupplier, contact: e.target.value })
+                  setNewBuyer({ ...newBuyer, contact: e.target.value })
                 }
               />
             </div>
@@ -345,7 +264,7 @@ const SupplierDashboard = () => {
               >
                 Cancel
               </button>
-              <button className="btn btn-primary" onClick={handleSaveSupplier}>
+              <button className="btn btn-primary" onClick={handleSaveBuyer}>
                 Save
               </button>
             </div>
@@ -356,4 +275,4 @@ const SupplierDashboard = () => {
   );
 };
 
-export default SupplierDashboard;
+export default BuyerDashboard;

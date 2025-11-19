@@ -16,6 +16,8 @@ import SellerDashboard from "./views/dashboard";
 import BorrowerSettlement from "./views/tagade";
 import SupplierDashboard from "./views/supplier/supplierList";
 import SupplierDetails from "./views/supplier/supplierDetails";
+import BuyerDashboard from "./views/buyer/buyerList";
+import BuyerDetails from "./views/buyer/buyerDetails";
 import ExpensePage from "./views/expense";
 import ProtectedRoute from "./components/protectedRoute";
 
@@ -91,6 +93,22 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <SupplierDetails />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/buyer"
+                element={
+                  <ProtectedRoute>
+                    <BuyerDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/buyers/:name"
+                element={
+                  <ProtectedRoute>
+                    <BuyerDetails />
                   </ProtectedRoute>
                 }
               />

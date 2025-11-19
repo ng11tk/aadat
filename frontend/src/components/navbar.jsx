@@ -46,6 +46,9 @@ const Navbar = () => {
             <Link to={"/tagade"}>Tagade</Link>
           </li>
           <li>
+            <Link to={"/buyer"}>Buyer</Link>
+          </li>
+          <li>
             <Link to={"/supplier"}>Supplier</Link>
           </li>
           <li>

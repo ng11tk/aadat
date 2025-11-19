@@ -1,77 +1,46 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "react-router-dom";
-import { FETCH_SUPPLIER_DETAILS } from "../../graphql/query";
-import { useMutation, useQuery } from "@apollo/client/react";
-import { INSERT_SUPPLIER_TRANSACTION } from "../../graphql/mutation";
-import { promiseResolver } from "../../utils/promisResolver";
 
-const formatDate = (date) => date.toISOString().split("T")[0];
+const formatDate = (date: Date) => date.toISOString().split("T")[0];
 
-const SupplierDetails = () => {
+const BuyerDetails = () => {
   const today = new Date();
   const location = useLocation();
-  const suppliers = location.state?.supplier || [];
-  const [supplier, setSupplier] = useState<any>({});
-  const [selectedTransactions, setSelectedTransactions] = useState({});
-  const [modalTransaction, setModalTransaction] = useState(null);
+  const buyerFromState = location.state?.buyer || {};
+  const [buyer, setBuyer] = useState<any>({});
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [modalTransaction, setModalTransaction] = useState<any | null>(null);
   const [filterMode, setFilterMode] = useState("thisMonth");
-  const [statusFilter, setStatusFilter] = useState("all"); // ✅ new filter
   const [fromDate, setFromDate] = useState(
     formatDate(new Date(today.getFullYear(), today.getMonth(), 1))
   );
   const [toDate, setToDate] = useState(formatDate(today));
+  const [statusFilter, setStatusFilter] = useState("all");
 
-  const [insertSupplierTransactions] = useMutation(INSERT_SUPPLIER_TRANSACTION);
-
-  // fetch supplier details
-  const {
-    error,
-    data: { supplier_supplier: supplier_supplier = [] } = {},
-    loading,
-    refetch,
-  } = useQuery(FETCH_SUPPLIER_DETAILS, {
-    variables: {
-      where: {
-        id: { _eq: suppliers.id },
-      },
-    },
-    fetchPolicy: "network-only",
-  });
-
-  // update supplier state when data changes
   useEffect(() => {
-    if (supplier_supplier && supplier_supplier.length > 0) {
-      const s = supplier_supplier[0];
-      const formattedSupplier = {
-        id: s.id,
-        name: s.name,
-        contact: s.phone,
-        address: s.address,
-        totalSale: s.supplier_unloadings_aggregate?.aggregate?.sum?.amount || 0,
-        totalDue:
-          s.supplier_unloadings_aggregate?.aggregate?.sum?.remaining_amount ||
-          0,
-        totalAdvance: 2000,
-        transactions: s?.supplier_unloadings_aggregate?.nodes.map((t: any) => ({
-          id: t.id,
-          date: t.unloading_date,
-          total: t.amount,
-          due: t.remaining_amount,
-          payment_status: t.payment_status,
-          items: t.unloading.unloading_items.map((item: any) => ({
-            id: item.id,
-            name: item.item_name,
-            qty: item.quantity,
-            rate: item.rate,
-            unit: item.unit,
-          })),
-        })),
-      };
+    // populate buyer
+    setBuyer(buyerFromState || {});
 
-      setSupplier(formattedSupplier);
+    // try to load transactions for this buyer from localStorage (key: sales)
+    try {
+      const sales = JSON.parse(localStorage.getItem("sales") || "[]");
+      const filtered = sales.filter(
+        (s: any) => s.buyer === (buyerFromState.name || buyerFromState.buyer)
+      );
+      // normalize transactions
+      const t = filtered.map((s: any, idx: number) => ({
+        id: s.id || Date.now() + idx,
+        date: s.date || formatDate(new Date()),
+        total: s.grandTotalAmount || s.total || 0,
+        due: (s.grandTotalAmount || s.total || 0) - (s.paid || 0),
+        items: (s.groups || []).flatMap((g: any) => g.items || []),
+      }));
+      setTransactions(t);
+    } catch (err) {
+      setTransactions([]);
     }
-  }, [supplier_supplier]);
+  }, [buyerFromState]);
 
   const applyQuickFilter = (mode: string) => {
     setFilterMode(mode);
@@ -92,8 +61,7 @@ const SupplierDetails = () => {
     }
   };
 
-  // ✅ Filter by date + status
-  const filteredTransactions = supplier?.transactions?.filter((t: any) => {
+  const filtered = transactions.filter((t) => {
     const d = new Date(t.date);
     const withinDate = d >= new Date(fromDate) && d <= new Date(toDate);
     const statusMatch =
@@ -103,8 +71,10 @@ const SupplierDetails = () => {
     return withinDate && statusMatch;
   });
 
-  const updateTransaction = (id: any, mode: any, amount: number = 0) => {
-    const t = supplier?.transactions?.find((tr: any) => tr.id === id);
+  const [selectedTransactions, setSelectedTransactions] = useState<any>({});
+
+  const updateTransactionSelection = (id: any, mode: any, amount = 0) => {
+    const t = transactions.find((tr) => tr.id === id);
     if (!t || t.due === 0) return;
     setSelectedTransactions((prev: any) => {
       if (prev[id]?.mode === mode) {
@@ -124,71 +94,51 @@ const SupplierDetails = () => {
     0
   );
 
-  const savePartial = (id: any, amount: any, due: any) => {
-    if (!amount || amount <= 0) return;
-    if (amount >= due) {
-      updateTransaction(id, "full");
-    } else {
-      setSelectedTransactions((prev: any) => ({
-        ...prev,
-        [id]: { ...prev[id], mode: "partial", amount, finalized: true },
-      }));
-    }
-  };
-
-  const handleUpdateSupplierPayments = async () => {
-    const output = Object.entries(selectedTransactions).map(([id, value]) => {
-      return { supplier_unloading_id: id, amount: value.amount };
+  const confirmPayment = () => {
+    // naive local update: subtract from due and persist to localStorage
+    const updated = transactions.map((tr) => {
+      const sel = selectedTransactions[tr.id];
+      if (!sel) return tr;
+      const amount = sel.amount || 0;
+      return { ...tr, due: Math.max(0, tr.due - amount) };
     });
-
-    const [data, error] = await promiseResolver(
-      insertSupplierTransactions({
-        variables: { objects: output },
-      })
-    );
-    if (error) {
-      console.error("Error inserting supplier transactions:", error);
-      return;
-    }
+    setTransactions(updated);
     setSelectedTransactions({});
-    refetch();
   };
-
-  if (loading) {
-    return <div className="p-6">Loading...</div>;
-  }
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen text-gray-900">
-      {/* Supplier & Business Summary */}
       <div className="mb-6 grid md:grid-cols-2 gap-4">
         <div className="bg-white shadow-md rounded-xl p-4 border border-gray-200">
-          <h2 className="text-lg font-semibold mb-1">{supplier.name}</h2>
-          <p className="text-gray-600 text-sm">📞 {supplier.contact}</p>
+          <h2 className="text-lg font-semibold mb-1">
+            {buyer.name || buyer.buyer}
+          </h2>
+          <p className="text-gray-600 text-sm">
+            📞 {buyer.contact || buyer.phone || "-"}
+          </p>
         </div>
         <div className="bg-white shadow-md rounded-xl p-4 border border-gray-200 flex justify-around">
           <div className="text-center">
             <p className="text-gray-500 text-sm">Total Sale</p>
             <p className="font-semibold text-indigo-600">
-              ₹{supplier.totalSale}
+              ₹{transactions.reduce((s, t) => s + (t.total || 0), 0)}
             </p>
           </div>
           <div className="text-center">
             <p className="text-gray-500 text-sm">Due</p>
-            <p className="font-semibold text-red-600">₹{supplier.totalDue}</p>
+            <p className="font-semibold text-red-600">
+              ₹{transactions.reduce((s, t) => s + (t.due || 0), 0)}
+            </p>
           </div>
           <div className="text-center">
             <p className="text-gray-500 text-sm">Advance</p>
-            <p className="font-semibold text-indigo-600">
-              ₹{supplier.totalAdvance}
-            </p>
+            <p className="font-semibold text-indigo-600">₹0</p>
           </div>
         </div>
       </div>
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3 mb-6">
-        {/* Date filters */}
         <div className="flex gap-2">
           {["today", "thisWeek", "thisMonth", "custom"].map((mode) => (
             <button
@@ -196,7 +146,7 @@ const SupplierDetails = () => {
               onClick={() => applyQuickFilter(mode)}
               className={`px-4 py-2 rounded-full border text-sm font-medium transition ${
                 filterMode === mode
-                  ? "bg-indigo-600 text-white border-indigo-600 shadow"
+                  ? "bg-indigo-600 text-white"
                   : "bg-white border-gray-300 text-gray-700 hover:bg-gray-100"
               }`}
             >
@@ -211,7 +161,6 @@ const SupplierDetails = () => {
           ))}
         </div>
 
-        {/* Custom Date Range */}
         {filterMode === "custom" && (
           <div className="flex gap-2">
             <input
@@ -229,7 +178,6 @@ const SupplierDetails = () => {
           </div>
         )}
 
-        {/* Status Filter */}
         <div className="flex gap-2 ml-auto">
           {["all", "paid", "unpaid"].map((status) => (
             <button
@@ -237,11 +185,7 @@ const SupplierDetails = () => {
               onClick={() => setStatusFilter(status)}
               className={`px-4 py-2 rounded-full border text-sm font-medium transition ${
                 statusFilter === status
-                  ? status === "paid"
-                    ? "bg-indigo-600 text-white border-indigo-600 shadow"
-                    : status === "unpaid"
-                    ? "bg-red-500 text-white border-red-500 shadow"
-                    : "bg-indigo-600 text-white border-indigo-600 shadow"
+                  ? "bg-indigo-600 text-white"
                   : "bg-white border-gray-300 text-gray-700 hover:bg-gray-100"
               }`}
             >
@@ -253,13 +197,12 @@ const SupplierDetails = () => {
 
       {/* Transactions Grid */}
       <div className="grid md:grid-cols-3 gap-4">
-        {filteredTransactions?.map((t) => {
+        {filtered.map((t) => {
           const info = selectedTransactions[t.id] || {
             mode: "full",
             amount: t.due,
           };
           const isPaid = t.due === 0;
-
           return (
             <motion.div
               key={t.id}
@@ -276,7 +219,6 @@ const SupplierDetails = () => {
               }`}
               onClick={() => setModalTransaction(t)}
             >
-              {/* Status Tag */}
               <div className="absolute top-2 right-2">
                 <span
                   className={`px-3 py-1 text-xs font-semibold rounded-full ${
@@ -293,14 +235,13 @@ const SupplierDetails = () => {
               <p className="text-sm text-gray-600">Total: ₹{t.total}</p>
               <p className="text-sm font-medium text-red-600">Due: ₹{t.due}</p>
 
-              {/* Payment actions */}
               {!isPaid && (
                 <div className="mt-3 space-y-2">
                   <div className="flex gap-2">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        updateTransaction(t.id, "full");
+                        updateTransactionSelection(t.id, "full");
                       }}
                       className={`flex-1 px-3 py-1 rounded-full text-sm font-medium ${
                         info.mode === "full"
@@ -313,7 +254,11 @@ const SupplierDetails = () => {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        updateTransaction(t.id, "partial", info.amount || 0);
+                        updateTransactionSelection(
+                          t.id,
+                          "partial",
+                          info.amount || 0
+                        );
                       }}
                       className={`flex-1 px-3 py-1 rounded-full text-sm font-medium ${
                         info.mode === "partial"
@@ -324,7 +269,7 @@ const SupplierDetails = () => {
                       Partial
                     </button>
                   </div>
-                  {info.mode === "partial" && !info.finalized && (
+                  {info.mode === "partial" && (
                     <div className="flex gap-2 mt-2">
                       <input
                         type="number"
@@ -332,7 +277,7 @@ const SupplierDetails = () => {
                         max={t.due}
                         value={info.amount || ""}
                         onChange={(e) =>
-                          setSelectedTransactions((prev) => ({
+                          setSelectedTransactions((prev: any) => ({
                             ...prev,
                             [t.id]: {
                               ...prev[t.id],
@@ -347,7 +292,6 @@ const SupplierDetails = () => {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          savePartial(t.id, info.amount, t.due);
                         }}
                         className="btn btn-sm btn-primary"
                       >
@@ -367,7 +311,6 @@ const SupplierDetails = () => {
         })}
       </div>
 
-      {/* Total Selected Payable */}
       {Object.keys(selectedTransactions).length > 0 && (
         <div className="mt-6 bg-white shadow rounded-xl p-4 flex justify-between items-center border border-gray-200">
           <span className="text-gray-700 font-medium">
@@ -376,16 +319,12 @@ const SupplierDetails = () => {
           <span className="text-xl font-bold text-indigo-600">
             ₹{totalSelectedAmount}
           </span>
-          <button
-            className="btn btn-primary"
-            onClick={handleUpdateSupplierPayments}
-          >
+          <button className="btn btn-primary" onClick={confirmPayment}>
             Confirm Payment
           </button>
         </div>
       )}
 
-      {/* Transaction Modal */}
       <AnimatePresence>
         {modalTransaction && (
           <motion.div
@@ -403,13 +342,13 @@ const SupplierDetails = () => {
               onClick={(e) => e.stopPropagation()}
             >
               <h3 className="font-semibold text-lg mb-4">Transaction Items</h3>
-              {modalTransaction.items.map((i, idx) => (
+              {modalTransaction.items.map((i: any, idx: number) => (
                 <div key={idx} className="flex justify-between mb-2">
                   <span className="text-gray-700">
-                    {i.name} x{i.qty}
+                    {i.name} x{i.quantity}
                   </span>
                   <span className="font-semibold text-gray-900">
-                    ₹{i.qty * i.rate}
+                    ₹{(i.quantity * (i.rate || 0)).toFixed(2)}
                   </span>
                 </div>
               ))}
@@ -427,4 +366,4 @@ const SupplierDetails = () => {
   );
 };
 
-export default SupplierDetails;
+export default BuyerDetails;
