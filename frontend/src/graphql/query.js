@@ -30,9 +30,12 @@ export const GET_ALL_OPENING_UNLOADING = gql`
       id
       name
       amount
+      advance_amount
       type
       unloading_date
       isDayClose
+      kharcha_details
+      bhada_details
       unloading_items(where: $whereUnloadingItems) {
         id
         name

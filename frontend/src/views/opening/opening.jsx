@@ -23,6 +23,12 @@ const initialItem = {
   vehicle_number: "hr30ar4004",
   bhada: 10,
   isDayClose: false,
+  kharcha_details: {
+    commission: 0,
+    labour: 0,
+    market: 0,
+    driver_gift: 0,
+  },
   unloading_items: [
     {
       name: "ghobhi",
@@ -41,7 +47,8 @@ const OpeningStock = () => {
   const [newItem, setNewItem] = useState(initialItem);
 
   // mutations
-  const [insertUnLoading] = useMutation(INSERT_UNLOADING);
+  const [insertUnLoading, { loading: insertUnloadingLoading }] =
+    useMutation(INSERT_UNLOADING);
   const [updateUnloadingStatus] = useMutation(UPDATE_UNLOADING_STATUS);
   const [insertUnloadingRemainingItem] = useMutation(
     INSERT_UNLOADING_REMAINING_ITEM
@@ -132,9 +139,18 @@ const OpeningStock = () => {
     )
       return;
 
+    const totalKharcha = Object.values(newItem.kharcha_details).reduce(
+      (sum, val) => sum + (Number(val) || 0),
+      0
+    );
+
+    const itemsTotalAmount = newItem.unloading_items.reduce(
+      (sum, it) => sum + (Number(it.rate) || 0) * (Number(it.quantity) || 0),
+      0
+    );
+
     const item = {
       ...newItem,
-      bhada: Number(newItem.bhada) || 0,
       amount_paid: Number(newItem.amount_paid) || 0,
       advance: Number(newItem.advance) || 0,
       unloading_items: newItem.unloading_items.map((it) => ({
@@ -142,12 +158,24 @@ const OpeningStock = () => {
         rate: Number(it.rate) || 0,
         quantity: Number(it.quantity) || 0,
       })),
+      kharcha_details: {
+        commission: Number(newItem.kharcha_details.commission) || 0,
+        labour: Number(newItem.kharcha_details.labour) || 0,
+        market: Number(newItem.kharcha_details.market) || 0,
+        driver_gift: Number(newItem.kharcha_details.driver_gift) || 0,
+      },
     };
 
     const customObject = {
       type: item.type,
       name: item.name,
-      amount: item.amount_paid,
+      amount: totalKharcha + itemsTotalAmount,
+      advance_amount: item.amount_paid,
+      bhada_details: {
+        bhada: Number(item.bhada) || 0,
+        vehicle_number: item.vehicle_number,
+      },
+      kharcha_details: item.kharcha_details,
       unloading_date: new Date().toISOString().split("T")[0],
       isDayClose: true,
       unloading_items: {
@@ -171,8 +199,8 @@ const OpeningStock = () => {
       supplier_unloading: {
         data: {
           supplier_name: item.name,
-          amount: item.amount_paid,
-          remaining_amount: item.amount_paid - item.advance,
+          amount: totalKharcha + itemsTotalAmount,
+          remaining_amount: totalKharcha + itemsTotalAmount - item.amount_paid,
           payment_status: "pending",
           unloading_date: new Date().toISOString().split("T")[0],
         },
@@ -388,6 +416,7 @@ const OpeningStock = () => {
             onAdd={handleAddItem}
             newItem={newItem}
             setNewItem={setNewItem}
+            insertUnloadingLoading={insertUnloadingLoading}
           />
         </AnimatePresence>
       )}

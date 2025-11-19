@@ -5,7 +5,13 @@ import { Plus, Trash2, Package } from "lucide-react";
 import { FETCH_SUPPLIERS } from "../../../graphql/query";
 import { useEffect, useState } from "react";
 
-const AddItemModal = ({ onClose, onAdd, newItem, setNewItem }) => {
+const AddItemModal = ({
+  onClose,
+  onAdd,
+  newItem,
+  setNewItem,
+  insertUnloadingLoading,
+}) => {
   const [suppliers, setSuppliers] = useState([]);
   // fetch supplier list from database
   const {
@@ -125,7 +131,7 @@ const AddItemModal = ({ onClose, onAdd, newItem, setNewItem }) => {
                   placeholder={`Enter ${
                     newItem.type === "supplier" ? "supplier" : "modi"
                   } name`}
-                  onChange={(e) => {                    
+                  onChange={(e) => {
                     return handleChange("name", e.target.value);
                   }}
                   className="w-full border border-gray-300 rounded-lg p-3 text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
@@ -197,6 +203,103 @@ const AddItemModal = ({ onClose, onAdd, newItem, setNewItem }) => {
                   value={newItem.bhada}
                   onChange={(e) => handleChange("bhada", e.target.value)}
                   className="w-full border border-gray-300 rounded-lg p-3 text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Kharcha Details */}
+          <div className="p-6 bg-white rounded-2xl shadow border border-gray-200">
+            <h3 className="text-xl font-semibold text-gray-800 mb-4">
+              Kharcha Details
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {/* Commission */}
+              <div>
+                <label className="block text-sm font-medium text-gray-600 mb-1">
+                  Commission
+                </label>
+                <input
+                  type="number"
+                  placeholder="Enter Commission"
+                  value={newItem.kharcha_details?.commission || 0}
+                  onChange={(e) =>
+                    setNewItem({
+                      ...newItem,
+                      kharcha_details: {
+                        ...newItem.kharcha_details,
+                        commission: e.target.value,
+                      },
+                    })
+                  }
+                  className="w-full border border-gray-300 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                />
+              </div>
+
+              {/* Labour */}
+              <div>
+                <label className="block text-sm font-medium text-gray-600 mb-1">
+                  Labour
+                </label>
+                <input
+                  type="number"
+                  placeholder="Enter Labour Charge"
+                  value={newItem.kharcha_details?.labour || 0}
+                  onChange={(e) =>
+                    setNewItem({
+                      ...newItem,
+                      kharcha_details: {
+                        ...newItem.kharcha_details,
+                        labour: e.target.value,
+                      },
+                    })
+                  }
+                  className="w-full border border-gray-300 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                />
+              </div>
+
+              {/* Market */}
+              <div>
+                <label className="block text-sm font-medium text-gray-600 mb-1">
+                  Market
+                </label>
+                <input
+                  type="number"
+                  placeholder="Enter Market Charge"
+                  value={newItem.kharcha_details?.market || 0}
+                  onChange={(e) =>
+                    setNewItem({
+                      ...newItem,
+                      kharcha_details: {
+                        ...newItem.kharcha_details,
+                        market: e.target.value,
+                      },
+                    })
+                  }
+                  className="w-full border border-gray-300 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                />
+              </div>
+
+              {/* Driver Gift */}
+              <div>
+                <label className="block text-sm font-medium text-gray-600 mb-1">
+                  Driver Gift
+                </label>
+                <input
+                  type="number"
+                  placeholder="Enter Driver Gift"
+                  value={newItem.kharcha_details?.driver_gift || 0}
+                  onChange={(e) =>
+                    setNewItem({
+                      ...newItem,
+                      kharcha_details: {
+                        ...newItem.kharcha_details,
+                        driver_gift: e.target.value,
+                      },
+                    })
+                  }
+                  className="w-full border border-gray-300 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 />
               </div>
             </div>
@@ -317,9 +420,14 @@ const AddItemModal = ({ onClose, onAdd, newItem, setNewItem }) => {
             </button>
             <button
               type="submit"
-              className="px-6 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold hover:opacity-90 transition shadow"
+              disabled={insertUnloadingLoading}
+              className={`px-6 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold transition shadow ${
+                insertUnloadingLoading
+                  ? "opacity-60 cursor-not-allowed"
+                  : "hover:opacity-90"
+              }`}
             >
-              Save All
+              {insertUnloadingLoading ? "Saving..." : "Save All"}
             </button>
           </div>
         </form>
