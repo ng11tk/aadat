@@ -1,20 +1,33 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus } from "lucide-react";
 import { motion } from "framer-motion";
 import { useMutation, useQuery } from "@apollo/client/react";
 import { INSERT_SUPPLIER } from "../../graphql/mutation";
-import { promiseResolver } from "../../utils/promisResolver";
 import { FETCH_SUPPLIERS_AGGREGATE } from "../../graphql/query";
+
+// Debounce hook
+function useDebounce(value, delay = 400) {
+  const [debounced, setDebounced] = useState(value);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(t);
+  }, [value]);
+
+  return debounced;
+}
 
 const SupplierDashboard = () => {
   const navigate = useNavigate();
-  const [supplierFromDatabase, setSuppliersFromDatabase] = useState(null);
+  const [supplierFromDatabase, setSuppliersFromDatabase] = useState([]);
+
   const [supplierFilter, setSupplierFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all"); // new filter
+  const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
 
-  // --- Modal state ---
+  const debouncedSupplierFilter = useDebounce(supplierFilter, 400);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newSupplier, setNewSupplier] = useState({
     supplier: "",
@@ -22,56 +35,47 @@ const SupplierDashboard = () => {
     type: "supplier",
   });
 
-  // fetch suppliers
-
-  // Build GraphQL `where` object: include `type` and `payment_status` when selected
-  const whereSupplier = (() => {
+  // Build GraphQL where filter object
+  const whereSupplier = useMemo(() => {
     const w = {};
-    if (typeFilter && typeFilter !== "all") w.type = { _eq: typeFilter };
-    if (statusFilter && statusFilter !== "all")
-      w.payment_status = { _eq: statusFilter };
-    // server-side supplier name filter (partial, case-insensitive)
-    if (supplierFilter && supplierFilter.trim() !== "")
-      w.name = { _ilike: `%${supplierFilter}%` };
+    if (typeFilter !== "all") w.type = { _eq: typeFilter };
+    if (statusFilter !== "all") w.payment_status = { _eq: statusFilter };
+    if (debouncedSupplierFilter.trim() !== "")
+      w.name = { _ilike: `%${debouncedSupplierFilter}%` };
     return w;
-  })();
+  }, [typeFilter, statusFilter, debouncedSupplierFilter]);
 
-  const {
-    error,
-    data: { supplier_supplier: supplier_supplier = [] } = {},
-    loading,
-    refetch,
-  } = useQuery(FETCH_SUPPLIERS_AGGREGATE, {
-    variables: {
-      whereSupplier,
-    },
+  // Query suppliers
+  const { error, data, loading } = useQuery(FETCH_SUPPLIERS_AGGREGATE, {
+    variables: { whereSupplier },
     fetchPolicy: "network-only",
   });
 
-  // update suppliers state when data changes
-  useEffect(() => {
-    if (supplier_supplier != null) {
-      const formattedSuppliers = supplier_supplier.map((s) => ({
-        id: s.id,
-        supplier: s.name,
-        total: s.amount || 0,
-        paid: s.remaining_amount || 0,
-        contact: s.phone,
-        type: s.type,
-      }));
-      setSuppliersFromDatabase(formattedSuppliers);
-    }
-  }, [supplier_supplier]);
+  const supplierList = data?.supplier_supplier ?? [];
 
-  // mutation in data from purchase page
+  // Clean state update (no infinite loop)
+  useEffect(() => {
+    if (!data) return;
+
+    const formatted = supplierList.map((s) => ({
+      id: s.id,
+      supplier: s.name,
+      total: s.amount || 0,
+      paid: s.remaining_amount || 0,
+      contact: s.phone,
+      type: s.type,
+    }));
+
+    setSuppliersFromDatabase(formatted);
+  }, [data]);
+
+  // Insert supplier
   const [insertSupplier, { loading: insertSupplierLoading }] =
     useMutation(INSERT_SUPPLIER);
 
-  // --- Save new supplier ---
   const handleSaveSupplier = async () => {
     if (!newSupplier.supplier || !newSupplier.contact) return;
 
-    // Insert supplier into database and refetch suppliers query
     try {
       await insertSupplier({
         variables: {
@@ -83,25 +87,18 @@ const SupplierDashboard = () => {
         },
         refetchQueries: [{ query: FETCH_SUPPLIERS_AGGREGATE }],
       });
-      console.log("Inserted supplier and refetched suppliers.");
     } catch (err) {
-      console.error("Error inserting supplier:", err);
+      console.error("Insert Supplier Error:", err);
     }
 
-    setNewSupplier({
-      supplier: "",
-      contact: "",
-      type: "supplier",
-    });
+    setNewSupplier({ supplier: "", contact: "", type: "supplier" });
     setIsModalOpen(false);
   };
 
-  const totalAmount = supplierFromDatabase?.reduce(
-    (sum, supplier) => sum + supplier.total,
-    0
-  );
-  const totalPaid = supplierFromDatabase?.reduce(
-    (sum, supplier) => sum + (supplier.total - supplier.paid),
+  // Totals
+  const totalAmount = supplierFromDatabase.reduce((sum, s) => sum + s.total, 0);
+  const totalPaid = supplierFromDatabase.reduce(
+    (sum, s) => sum + (s.total - s.paid),
     0
   );
   const totalDue = totalAmount - totalPaid;
@@ -119,7 +116,7 @@ const SupplierDashboard = () => {
         </button>
       </div>
 
-      {/* --- Summary Strip --- */}
+      {/* Summary */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         <motion.div
           whileHover={{ y: -3 }}
@@ -147,23 +144,48 @@ const SupplierDashboard = () => {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3 mb-6">
+      <div className="flex flex-wrap items-center gap-3 mb-6 w-full">
         {/* Payment Status Filter */}
-        <div className="flex gap-2 mb-4">
+        <div className="flex gap-2">
           {["all", "paid", "partial"].map((status) => (
             <button
               key={status}
               onClick={() => setStatusFilter(status)}
-              className={`px-4 py-1 rounded-full text-sm font-medium transition ${
-                statusFilter === status
-                  ? "bg-indigo-600 text-white"
-                  : "bg-white border border-gray-300 text-gray-700 hover:bg-indigo-50"
-              }`}
+              className={`px-4 py-1 rounded-full text-sm font-medium transition
+          ${
+            statusFilter === status
+              ? "bg-indigo-600 text-white shadow"
+              : "bg-white border border-gray-300 text-gray-700 hover:bg-indigo-50"
+          }`}
             >
               {status.toUpperCase()}
             </button>
           ))}
         </div>
+
+        {/* Supplier Type Filter */}
+        <div className="flex gap-2">
+          {[
+            { key: "all", label: "All" },
+            { key: "supplier", label: "Supplier" },
+            { key: "modi", label: "Modi" },
+          ].map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTypeFilter(t.key)}
+              className={`px-4 py-1 rounded-full text-sm font-medium transition
+          ${
+            typeFilter === t.key
+              ? "bg-indigo-600 text-white shadow"
+              : "bg-white border border-gray-300 text-gray-700 hover:bg-indigo-50"
+          }`}
+            >
+              {t.label.toUpperCase()}
+            </button>
+          ))}
+        </div>
+
+        {/* Search */}
         <input
           type="text"
           placeholder="Search supplier"
@@ -172,74 +194,66 @@ const SupplierDashboard = () => {
           className="ml-auto px-3 py-2 border rounded-lg text-gray-700 bg-white shadow-sm w-64"
         />
       </div>
-      <div className="flex items-center gap-3 mr-4">
-        <label className="text-sm text-gray-600">Type</label>
-        <select
-          value={typeFilter}
-          onChange={(e) => setTypeFilter(e.target.value)}
-          className="select select-bordered w-40"
-        >
-          <option value="all">All</option>
-          <option value="supplier">Supplier</option>
-          <option value="modi">Modi</option>
-        </select>
-      </div>
 
       {/* Supplier Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {loading && !supplierFromDatabase && <p>Loading...</p>}
-        {!loading && supplierFromDatabase?.length === 0 ? (
-          <p className="text-gray-500 italic">No suppliers found</p>
-        ) : (
-          supplierFromDatabase?.map((p) => {
-            const due = p.paid;
-            const status =
-              due === 0 ? "paid" : p.paid === 0 ? "unpaid" : "partial";
-
-            return (
-              <motion.div
-                key={p.supplier}
-                whileHover={{
-                  y: -3,
-                  boxShadow: "0px 8px 18px rgba(0,0,0,0.08)",
-                }}
-                className={`relative rounded-xl p-5 transition-all border cursor-pointer ${
-                  status === "paid"
-                    ? "bg-indigo-50 border-indigo-200"
-                    : status === "partial"
-                    ? "bg-orange-50 border-orange-200"
-                    : "bg-red-50 border-red-200"
-                }`}
-                onClick={() =>
-                  navigate(`/suppliers/${encodeURIComponent(p.supplier)}`, {
-                    state: { supplier: p },
-                  })
-                }
-              >
-                <div className="flex justify-between items-center">
-                  <h2 className="text-lg font-semibold text-gray-800">
-                    {p.supplier}
-                  </h2>
-                  <span
-                    className={`badge text-white ${
-                      status === "paid"
-                        ? "badge-primary"
-                        : status === "partial"
-                        ? "badge-warning"
-                        : "badge-error"
-                    }`}
-                  >
-                    {status.toUpperCase()}
-                  </span>
-                </div>
-                <p className="text-sm text-gray-600">Total: ₹{p.total}</p>
-                <p className="text-sm text-gray-600">Paid: ₹{p.total - due}</p>
-                <p className="text-sm text-gray-600">Due: ₹{due}</p>
-                <p className="text-xs text-gray-400 italic">Type: {p.type}</p>
-              </motion.div>
-            );
-          })
+        {loading && supplierFromDatabase.length === 0 && (
+          <p className="text-gray-500 italic">Loading...</p>
         )}
+
+        {!loading && supplierFromDatabase.length === 0 && (
+          <p className="text-gray-500 italic">No suppliers found</p>
+        )}
+
+        {supplierFromDatabase.map((p) => {
+          const due = p.paid;
+          const status =
+            due === 0 ? "paid" : p.total - due === 0 ? "unpaid" : "partial";
+
+          return (
+            <motion.div
+              key={p.id}
+              whileHover={{
+                y: -3,
+                boxShadow: "0px 8px 18px rgba(0,0,0,0.08)",
+              }}
+              className={`relative rounded-xl p-5 transition-all border cursor-pointer ${
+                status === "paid"
+                  ? "bg-indigo-50 border-indigo-200"
+                  : status === "partial"
+                  ? "bg-orange-50 border-orange-200"
+                  : "bg-red-50 border-red-200"
+              }`}
+              onClick={() =>
+                navigate(`/suppliers/${encodeURIComponent(p.supplier)}`, {
+                  state: { supplier: p },
+                })
+              }
+            >
+              <div className="flex justify-between items-center">
+                <h2 className="text-lg font-semibold text-gray-800">
+                  {p.supplier}
+                </h2>
+                <span
+                  className={`badge text-white ${
+                    status === "paid"
+                      ? "badge-primary"
+                      : status === "partial"
+                      ? "badge-warning"
+                      : "badge-error"
+                  }`}
+                >
+                  {status.toUpperCase()}
+                </span>
+              </div>
+
+              <p className="text-sm text-gray-600">Total: ₹{p.total}</p>
+              <p className="text-sm text-gray-600">Paid: ₹{p.total - due}</p>
+              <p className="text-sm text-gray-600">Due: ₹{due}</p>
+              <p className="text-xs text-gray-400 italic">Type: {p.type}</p>
+            </motion.div>
+          );
+        })}
       </div>
 
       {/* Add Supplier Modal */}
@@ -286,11 +300,10 @@ const SupplierDashboard = () => {
               </button>
               <button
                 className={`btn btn-primary ${
-                  insertSupplierLoading ? "opacity-50 cursor-not-allowed" : ""
+                  insertSupplierLoading ? "opacity-50" : ""
                 }`}
                 onClick={handleSaveSupplier}
                 disabled={insertSupplierLoading}
-                aria-busy={insertSupplierLoading}
               >
                 {insertSupplierLoading ? "Saving..." : "Save"}
               </button>
