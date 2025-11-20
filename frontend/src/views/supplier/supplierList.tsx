@@ -26,9 +26,6 @@ const SupplierDashboard = () => {
   const [newSupplier, setNewSupplier] = useState({
     supplier: "",
     contact: "",
-    total: "",
-    paid: "",
-    type: "Cash",
   });
 
   // fetch suppliers
@@ -87,8 +84,6 @@ const SupplierDashboard = () => {
 
   // mutation in data from purchase page
   const [insertSupplier] = useMutation(INSERT_SUPPLIER);
-  // server returns aggregated totals per supplier (supplierFromDatabase is already that)
-  const suppliersList = supplierFromDatabase || [];
 
   // --- Filters ---
   const applyQuickFilter = (mode) => {

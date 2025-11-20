@@ -49,3 +49,11 @@ export const INSERT_SUPPLIER_TRANSACTION = gql`
     }
   }
 `;
+
+export const INSERT_BUYER = gql`
+  mutation INSERT_BUYER($object: buyer_buyers_insert_input = {}) {
+    insert_buyer_buyers_one(object: $object) {
+      id
+    }
+  }
+`;

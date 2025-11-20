@@ -140,3 +140,12 @@ export const FETCH_SUPPLIER_DETAILS = gql`
     }
   }
 `;
+
+export const GET_BUYERS = gql`
+  query GET_BUYERS($where: buyer_buyers_bool_exp = {}) {
+    buyer_buyers(where: $where) {
+      id
+      name
+    }
+  }
+`;

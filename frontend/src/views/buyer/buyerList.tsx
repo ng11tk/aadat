@@ -2,6 +2,10 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus } from "lucide-react";
 import { motion } from "framer-motion";
+import { useMutation, useQuery } from "@apollo/client/react";
+import { INSERT_BUYER } from "../../graphql/mutation";
+import { promiseResolver } from "../../utils/promisResolver";
+import { GET_BUYERS } from "../../graphql/query";
 
 const formatDate = (date: Date) => date.toISOString().split("T")[0];
 
@@ -19,6 +23,10 @@ const BuyerDashboard = () => {
   // modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newBuyer, setNewBuyer] = useState({ name: "", contact: "" });
+
+  // insert buyer mutation would go here
+  const [insertBuyer, { loading: insetBuyerLoading }] =
+    useMutation(INSERT_BUYER);
 
   // load buyers from localStorage if available, otherwise sample data
   useEffect(() => {
@@ -64,8 +72,23 @@ const BuyerDashboard = () => {
     }
   };
 
-  const handleSaveBuyer = () => {
-    if (!newBuyer.name) return;
+  const handleSaveBuyer = async () => {
+    if (!newBuyer.name || !newBuyer.contact) return;
+
+    // call mutation to insert buyer
+    const [data, error] = await promiseResolver(
+      insertBuyer({
+        variables: {
+          object: { name: newBuyer.name, phone: Number(newBuyer.contact) },
+        },
+      })
+    );
+
+    if (error) {
+      console.error("Error inserting buyer:", error);
+      return;
+    }
+
     setBuyers((prev) => [
       ...prev,
       {
@@ -264,8 +287,15 @@ const BuyerDashboard = () => {
               >
                 Cancel
               </button>
-              <button className="btn btn-primary" onClick={handleSaveBuyer}>
-                Save
+              <button
+                className={`btn btn-primary ${
+                  insetBuyerLoading ? "opacity-50 cursor-not-allowed" : ""
+                }`}
+                onClick={handleSaveBuyer}
+                disabled={insetBuyerLoading}
+                aria-busy={insetBuyerLoading}
+              >
+                {insetBuyerLoading ? "Saving..." : "Save"}
               </button>
             </div>
           </div>
