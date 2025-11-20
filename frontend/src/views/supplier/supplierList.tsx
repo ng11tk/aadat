@@ -5,18 +5,7 @@ import { motion } from "framer-motion";
 import { useMutation, useQuery } from "@apollo/client/react";
 import { INSERT_SUPPLIER } from "../../graphql/mutation";
 import { FETCH_SUPPLIERS_AGGREGATE } from "../../graphql/query";
-
-// Debounce hook
-function useDebounce(value, delay = 400) {
-  const [debounced, setDebounced] = useState(value);
-
-  useEffect(() => {
-    const t = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(t);
-  }, [value]);
-
-  return debounced;
-}
+import { useDebounce } from "../../utils/debounce";
 
 const SupplierDashboard = () => {
   const navigate = useNavigate();
