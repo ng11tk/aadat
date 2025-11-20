@@ -7,48 +7,34 @@ import { INSERT_SUPPLIER } from "../../graphql/mutation";
 import { promiseResolver } from "../../utils/promisResolver";
 import { FETCH_SUPPLIERS_AGGREGATE } from "../../graphql/query";
 
-const formatDate = (date) => date.toISOString().split("T")[0];
-
 const SupplierDashboard = () => {
   const navigate = useNavigate();
-  const today = new Date();
-  const [fromDate, setFromDate] = useState(
-    formatDate(new Date(today.getFullYear(), today.getMonth(), 1))
-  );
-  const [supplierFromDatabase, setSuppliersFromDatabase] = useState([]);
-  const [toDate, setToDate] = useState(formatDate(today));
+  const [supplierFromDatabase, setSuppliersFromDatabase] = useState(null);
   const [supplierFilter, setSupplierFilter] = useState("");
-  const [filterMode, setFilterMode] = useState("thisMonth");
   const [statusFilter, setStatusFilter] = useState("all"); // new filter
+  const [typeFilter, setTypeFilter] = useState("all");
 
   // --- Modal state ---
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newSupplier, setNewSupplier] = useState({
     supplier: "",
     contact: "",
+    type: "supplier",
   });
 
   // fetch suppliers
-  // build where clause for supplier_unloadings aggregation depending on statusFilter
-  const buildWhereSupplierUnloading = () => {
-    const base = { unloading_date: { _gte: fromDate, _lte: toDate } };
-    if (statusFilter === "paid") {
-      // include only unloadings that are fully paid (remaining_amount = 0)
-      return { ...base, remaining_amount: { _eq: 0 } };
-    }
-    if (statusFilter === "unpaid") {
-      // include unloadings with remaining amount greater than 0 (unpaid or partial)
-      return { ...base, remaining_amount: { _gt: 0 } };
-    }
-    if (statusFilter === "partial") {
-      // partial also maps to remaining_amount > 0 (server cannot easily distinguish paid==0 vs partial without cross-field compare)
-      return { ...base, remaining_amount: { _gt: 0 } };
-    }
-    // default: all unloadings in date range
-    return base;
-  };
 
-  const whereSupplierUnloading = buildWhereSupplierUnloading();
+  // Build GraphQL `where` object: include `type` and `payment_status` when selected
+  const whereSupplier = (() => {
+    const w = {};
+    if (typeFilter && typeFilter !== "all") w.type = { _eq: typeFilter };
+    if (statusFilter && statusFilter !== "all")
+      w.payment_status = { _eq: statusFilter };
+    // server-side supplier name filter (partial, case-insensitive)
+    if (supplierFilter && supplierFilter.trim() !== "")
+      w.name = { _ilike: `%${supplierFilter}%` };
+    return w;
+  })();
 
   const {
     error,
@@ -57,53 +43,29 @@ const SupplierDashboard = () => {
     refetch,
   } = useQuery(FETCH_SUPPLIERS_AGGREGATE, {
     variables: {
-      whereSupplier: {
-        supplier_unloadings: whereSupplierUnloading,
-        // name: { _ilike: `%${supplierFilter}%` },
-        //todo: add debounce logic if needed
-      },
+      whereSupplier,
     },
     fetchPolicy: "network-only",
   });
 
   // update suppliers state when data changes
   useEffect(() => {
-    if (supplier_supplier && supplier_supplier.length > 0) {
+    if (supplier_supplier != null) {
       const formattedSuppliers = supplier_supplier.map((s) => ({
         id: s.id,
         supplier: s.name,
-        total: s.supplier_unloadings_aggregate.aggregate.sum.amount || 0,
-        paid:
-          s.supplier_unloadings_aggregate.aggregate.sum.remaining_amount || 0,
+        total: s.amount || 0,
+        paid: s.remaining_amount || 0,
         contact: s.phone,
-        type: "Cash",
+        type: s.type,
       }));
       setSuppliersFromDatabase(formattedSuppliers);
     }
   }, [supplier_supplier]);
 
   // mutation in data from purchase page
-  const [insertSupplier] = useMutation(INSERT_SUPPLIER);
-
-  // --- Filters ---
-  const applyQuickFilter = (mode) => {
-    setFilterMode(mode);
-    if (mode === "today") {
-      const d = formatDate(today);
-      setFromDate(d);
-      setToDate(d);
-    } else if (mode === "thisWeek") {
-      const firstDayOfWeek = new Date(today);
-      firstDayOfWeek.setDate(today.getDate() - today.getDay());
-      setFromDate(formatDate(firstDayOfWeek));
-      setToDate(formatDate(today));
-    } else if (mode === "thisMonth") {
-      setFromDate(
-        formatDate(new Date(today.getFullYear(), today.getMonth(), 1))
-      );
-      setToDate(formatDate(today));
-    }
-  };
+  const [insertSupplier, { loading: insertSupplierLoading }] =
+    useMutation(INSERT_SUPPLIER);
 
   // --- Save new supplier ---
   const handleSaveSupplier = async () => {
@@ -116,6 +78,7 @@ const SupplierDashboard = () => {
           object: {
             name: newSupplier.supplier,
             phone: Number(newSupplier.contact),
+            type: newSupplier.type,
           },
         },
         refetchQueries: [{ query: FETCH_SUPPLIERS_AGGREGATE }],
@@ -128,24 +91,21 @@ const SupplierDashboard = () => {
     setNewSupplier({
       supplier: "",
       contact: "",
-      total: "",
-      paid: "",
-      type: "Cash",
+      type: "supplier",
     });
     setIsModalOpen(false);
   };
 
-  const totalAmount = supplierFromDatabase.reduce(
+  const totalAmount = supplierFromDatabase?.reduce(
     (sum, supplier) => sum + supplier.total,
     0
   );
-  const totalPaid = supplierFromDatabase.reduce(
+  const totalPaid = supplierFromDatabase?.reduce(
     (sum, supplier) => sum + (supplier.total - supplier.paid),
     0
   );
   const totalDue = totalAmount - totalPaid;
 
-  if (loading) return <p>Loading...</p>;
   return (
     <div className="p-6 bg-gray-50 min-h-screen text-gray-900">
       {/* Header */}
@@ -188,44 +148,22 @@ const SupplierDashboard = () => {
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3 mb-6">
-        {["today", "thisWeek", "thisMonth", "custom"].map((mode) => (
-          <button
-            key={mode}
-            onClick={() => applyQuickFilter(mode)}
-            className={`px-4 py-2 rounded-lg border text-sm font-medium shadow-sm transition ${
-              filterMode === mode
-                ? "bg-indigo-600 text-white border-indigo-600"
-                : "bg-white border-gray-300 text-gray-700 hover:bg-indigo-50"
-            }`}
-          >
-            {mode === "today"
-              ? "Today"
-              : mode === "thisWeek"
-              ? "This Week"
-              : mode === "thisMonth"
-              ? "This Month"
-              : "Custom"}
-          </button>
-        ))}
-
-        {/* Custom Date Range */}
-        {filterMode === "custom" && (
-          <div className="flex gap-2">
-            <input
-              type="date"
-              value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
-              className="input input-sm input-bordered bg-white"
-            />
-            <input
-              type="date"
-              value={toDate}
-              onChange={(e) => setToDate(e.target.value)}
-              className="input input-sm input-bordered bg-white"
-            />
-          </div>
-        )}
-
+        {/* Payment Status Filter */}
+        <div className="flex gap-2 mb-4">
+          {["all", "paid", "partial"].map((status) => (
+            <button
+              key={status}
+              onClick={() => setStatusFilter(status)}
+              className={`px-4 py-1 rounded-full text-sm font-medium transition ${
+                statusFilter === status
+                  ? "bg-indigo-600 text-white"
+                  : "bg-white border border-gray-300 text-gray-700 hover:bg-indigo-50"
+              }`}
+            >
+              {status.toUpperCase()}
+            </button>
+          ))}
+        </div>
         <input
           type="text"
           placeholder="Search supplier"
@@ -234,30 +172,26 @@ const SupplierDashboard = () => {
           className="ml-auto px-3 py-2 border rounded-lg text-gray-700 bg-white shadow-sm w-64"
         />
       </div>
-
-      {/* Payment Status Filter */}
-      <div className="flex gap-2 mb-4">
-        {["all", "paid", "unpaid", "partial"].map((status) => (
-          <button
-            key={status}
-            onClick={() => setStatusFilter(status)}
-            className={`px-4 py-1 rounded-full text-sm font-medium transition ${
-              statusFilter === status
-                ? "bg-indigo-600 text-white"
-                : "bg-white border border-gray-300 text-gray-700 hover:bg-indigo-50"
-            }`}
-          >
-            {status.toUpperCase()}
-          </button>
-        ))}
+      <div className="flex items-center gap-3 mr-4">
+        <label className="text-sm text-gray-600">Type</label>
+        <select
+          value={typeFilter}
+          onChange={(e) => setTypeFilter(e.target.value)}
+          className="select select-bordered w-40"
+        >
+          <option value="all">All</option>
+          <option value="supplier">Supplier</option>
+          <option value="modi">Modi</option>
+        </select>
       </div>
 
       {/* Supplier Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {supplierFromDatabase.length === 0 ? (
+        {loading && !supplierFromDatabase && <p>Loading...</p>}
+        {!loading && supplierFromDatabase?.length === 0 ? (
           <p className="text-gray-500 italic">No suppliers found</p>
         ) : (
-          supplierFromDatabase.map((p) => {
+          supplierFromDatabase?.map((p) => {
             const due = p.paid;
             const status =
               due === 0 ? "paid" : p.paid === 0 ? "unpaid" : "partial";
@@ -332,6 +266,16 @@ const SupplierDashboard = () => {
                   setNewSupplier({ ...newSupplier, contact: e.target.value })
                 }
               />
+              <select
+                value={newSupplier.type}
+                onChange={(e) =>
+                  setNewSupplier({ ...newSupplier, type: e.target.value })
+                }
+                className="select select-bordered w-full"
+              >
+                <option value="supplier">Supplier</option>
+                <option value="modi">Modi</option>
+              </select>
             </div>
             <div className="modal-action">
               <button
@@ -340,8 +284,15 @@ const SupplierDashboard = () => {
               >
                 Cancel
               </button>
-              <button className="btn btn-primary" onClick={handleSaveSupplier}>
-                Save
+              <button
+                className={`btn btn-primary ${
+                  insertSupplierLoading ? "opacity-50 cursor-not-allowed" : ""
+                }`}
+                onClick={handleSaveSupplier}
+                disabled={insertSupplierLoading}
+                aria-busy={insertSupplierLoading}
+              >
+                {insertSupplierLoading ? "Saving..." : "Save"}
               </button>
             </div>
           </div>

@@ -17,12 +17,12 @@ import { useMutation, useQuery } from "@apollo/client/react"; // <- fixed import
 
 const initialItem = {
   type: "supplier",
-  name: "nitin",
+  name: "",
   amount_paid: 100,
   advance: 10,
   vehicle_number: "hr30ar4004",
   bhada: 10,
-  isDayClose: false,
+  isDayClose: true,
   kharcha_details: {
     commission: 0,
     labour: 0,
@@ -35,7 +35,7 @@ const initialItem = {
       rate: 10,
       quantity: 10,
       unit: "quintal",
-      isSellable: true,
+      isSellable: false,
     },
   ],
 };
@@ -201,7 +201,10 @@ const OpeningStock = () => {
           supplier_name: item.name,
           amount: totalKharcha + itemsTotalAmount,
           remaining_amount: totalKharcha + itemsTotalAmount - item.amount_paid,
-          payment_status: "pending",
+          payment_status:
+            totalKharcha + itemsTotalAmount - item.amount_paid <= 0
+              ? "paid"
+              : "partial",
           unloading_date: new Date().toISOString().split("T")[0],
         },
       },

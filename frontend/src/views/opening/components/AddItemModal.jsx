@@ -18,7 +18,9 @@ const AddItemModal = ({
     error,
     data: { supplier_supplier: supplier_supplier = [] } = {},
     loading,
-  } = useQuery(FETCH_SUPPLIERS);
+  } = useQuery(FETCH_SUPPLIERS, {
+    variables: { where: { type: { _eq: newItem.type } } },
+  });
 
   // update suppliers state when data changes
   useEffect(() => {
