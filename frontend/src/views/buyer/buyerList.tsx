@@ -5,7 +5,6 @@ import { motion } from "framer-motion";
 import { useMutation, useQuery } from "@apollo/client/react";
 import { INSERT_BUYER } from "../../graphql/mutation";
 import { promiseResolver } from "../../utils/promisResolver";
-import { GET_BUYERS } from "../../graphql/query";
 
 const formatDate = (date: Date) => date.toISOString().split("T")[0];
 

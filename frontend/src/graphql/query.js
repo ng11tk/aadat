@@ -40,6 +40,7 @@ export const GET_ALL_OPENING_UNLOADING = gql`
         id
         name
         quantity
+        remaining_quantity
         rate
         isSellable
         unit

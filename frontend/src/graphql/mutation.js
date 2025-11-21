@@ -22,15 +22,6 @@ export const UPDATE_UNLOADING_STATUS = gql`
   }
 `;
 
-export const INSERT_UNLOADING_REMAINING_ITEM = gql`
-  mutation INSERT_UNLOADING_REMAINING_ITEM(
-    $objects: [opening_remaining_item_insert_input!] = {}
-  ) {
-    insert_opening_remaining_item(objects: $objects) {
-      affected_rows
-    }
-  }
-`;
 
 export const INSERT_SUPPLIER = gql`
   mutation INSERT_SUPPLIER($object: supplier_supplier_insert_input = {}) {
