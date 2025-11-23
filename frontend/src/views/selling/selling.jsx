@@ -35,8 +35,12 @@ const SalesDashboard = () => {
   }, [fetchBuyers]);
 
   // lazily fetch modi items
-  const [loadModi, { data: modiData, loading: modiLoading }] =
-    useLazyQuery(FETCH_MODI_ITEMS);
+  const { data: modiData, loading: modiLoading } = useQuery(FETCH_MODI_ITEMS, {
+    variables: {
+      unloading_date: new Date().toISOString().split("T")[0],
+      isDayClose: false,
+    },
+  });
   const modiItemsData = modiData?.opening_unloading || [];
 
   useEffect(() => {
@@ -76,13 +80,6 @@ const SalesDashboard = () => {
 
     setModiList(formatted);
   }, [modiData]);
-
-  const handleLoadModi = () => {
-    if (modiLoading) return;
-    loadModi({
-      variables: { unloading_date: new Date().toISOString().split("T")[0] },
-    });
-  };
 
   // Apollo client for imperative queries (used to always fetch fresh data)
   const client = useApolloClient();
@@ -140,9 +137,9 @@ const SalesDashboard = () => {
       order_date: new Date().toISOString().split("T")[0],
       items_missing_rate_count: 0,
     };
-
     console.log("✔ Submit Payload", payload);
 
+    //todo: move this to backend as a transaction
     try {
       const { data: existingOrdersData } = await client.query({
         query: FIND_SALES_ORDERS,
@@ -190,7 +187,7 @@ const SalesDashboard = () => {
               })),
             },
           });
-          console.log("New sales order items added:", insertItemsData);
+          console.log("Sales order items updated:", insertItemsData);
         } catch (insertErr) {
           console.error(
             "Failed to insert sales order items, attempting rollback:",
@@ -238,9 +235,6 @@ const SalesDashboard = () => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Sell Dashboard</h1>
         <div className="relative w-60">
-          <label className="block text-sm font-semibold mb-1">
-            Select Buyer
-          </label>
           <div
             className="bg-white border rounded-xl p-3 shadow-sm flex items-center justify-between cursor-pointer hover:shadow-md transition-all"
             onClick={() => setBuyerDropdownOpen(!buyerDropdownOpen)}
@@ -287,14 +281,6 @@ const SalesDashboard = () => {
         <div className="bg-gray-50 shadow rounded-xl p-4 border border-gray-200">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold">Modi List</h2>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleLoadModi}
-                className="px-3 py-1 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700"
-              >
-                {modiLoading ? "Loading..." : "Load"}
-              </button>
-            </div>
           </div>
           <ul className="space-y-2">
             {modiList.map((m) => (

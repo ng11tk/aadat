@@ -176,3 +176,17 @@ export const FIND_SALES_ORDERS = gql`
     }
   }
 `;
+
+export const FETCH_BUYER_DETAILS = gql`
+  query FETCH_BUYER_DETAILS($whereBuyer: buyer_buyers_bool_exp = {}) {
+    buyer_buyers(where: $whereBuyer) {
+      id
+      name
+      phone
+      address
+      total_amount
+      remaining_amount
+      payment_status
+    }
+  }
+`;

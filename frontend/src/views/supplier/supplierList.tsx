@@ -10,19 +10,17 @@ import { useDebounce } from "../../utils/debounce";
 const SupplierDashboard = () => {
   const navigate = useNavigate();
   const [supplierFromDatabase, setSuppliersFromDatabase] = useState([]);
-
   const [supplierFilter, setSupplierFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
-
-  const debouncedSupplierFilter = useDebounce(supplierFilter, 400);
-
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newSupplier, setNewSupplier] = useState({
     supplier: "",
     contact: "",
     type: "supplier",
   });
+
+  const debouncedSupplierFilter = useDebounce(supplierFilter, 400);
 
   // Build GraphQL where filter object
   const whereSupplier = useMemo(() => {
@@ -34,14 +32,12 @@ const SupplierDashboard = () => {
     return w;
   }, [typeFilter, statusFilter, debouncedSupplierFilter]);
 
-  // Query suppliers
+  // fetch suppliers details
   const { error, data, loading } = useQuery(FETCH_SUPPLIERS_AGGREGATE, {
     variables: { whereSupplier },
     fetchPolicy: "network-only",
   });
-
   const supplierList = data?.supplier_supplier ?? [];
-
   // Clean state update (no infinite loop)
   useEffect(() => {
     if (!data) return;
@@ -50,7 +46,7 @@ const SupplierDashboard = () => {
       id: s.id,
       supplier: s.name,
       total: s.amount || 0,
-      paid: s.remaining_amount || 0,
+      paid: s.amount - s.remaining_amount || 0,
       contact: s.phone,
       type: s.type,
     }));
@@ -195,9 +191,8 @@ const SupplierDashboard = () => {
         )}
 
         {supplierFromDatabase.map((p) => {
-          const due = p.paid;
-          const status =
-            due === 0 ? "paid" : p.total - due === 0 ? "unpaid" : "partial";
+          const due = (p.total || 0) - (p.paid || 0);
+          const status = due === 0 ? "paid" : "partial";
 
           return (
             <motion.div

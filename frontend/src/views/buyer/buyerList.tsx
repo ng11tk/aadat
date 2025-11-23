@@ -5,71 +5,58 @@ import { motion } from "framer-motion";
 import { useMutation, useQuery } from "@apollo/client/react";
 import { INSERT_BUYER } from "../../graphql/mutation";
 import { promiseResolver } from "../../utils/promisResolver";
-
-const formatDate = (date: Date) => date.toISOString().split("T")[0];
+import { FETCH_BUYER_DETAILS } from "../../graphql/query";
+import { useDebounce } from "../../utils/debounce";
 
 const BuyerDashboard = () => {
   const navigate = useNavigate();
-  const today = new Date();
-  const [fromDate, setFromDate] = useState(
-    formatDate(new Date(today.getFullYear(), today.getMonth(), 1))
-  );
-  const [toDate, setToDate] = useState(formatDate(today));
-  const [buyerFilter, setBuyerFilter] = useState("");
-  const [filterMode, setFilterMode] = useState("thisMonth");
-  const [buyers, setBuyers] = useState<any[]>([]);
 
   // modal state
+  const [buyerFilter, setBuyerFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [buyers, setBuyers] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newBuyer, setNewBuyer] = useState({ name: "", contact: "" });
+
+  const debouncedBuyerFilter = useDebounce(buyerFilter, 400);
+
+  const whereBuyer = React.useMemo(() => {
+    let w = {};
+    if (statusFilter !== "all") w.payment_status = { _eq: statusFilter };
+    if (debouncedBuyerFilter.trim() !== "")
+      w.name = { _ilike: `%${debouncedBuyerFilter}%` };
+
+    return w;
+  }, [statusFilter, debouncedBuyerFilter]);
 
   // insert buyer mutation would go here
   const [insertBuyer, { loading: insetBuyerLoading }] =
     useMutation(INSERT_BUYER);
 
-  // load buyers from localStorage if available, otherwise sample data
+  // fetch buyers details
+  const {
+    data: buyersData,
+    loading: buyersLoading,
+    refetch: buyersRefetch,
+  } = useQuery(FETCH_BUYER_DETAILS, {
+    variables: { whereBuyer },
+    fetchPolicy: "network-only",
+  });
+  const fetchedBuyers = buyersData?.buyer_buyers ?? [];
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem("buyers");
-      if (stored) {
-        setBuyers(JSON.parse(stored));
-        return;
-      }
-    } catch (err) {
-      // ignore
-    }
+    if (!buyersData) return;
+    setBuyers(
+      fetchedBuyers.map((b: any) => ({
+        id: b.id,
+        name: b.name,
+        total: b.total_amount,
+        paid: b.total_amount - b.remaining_amount,
+        contact: b.phone,
+      }))
+    );
+  }, [fetchedBuyers]);
 
-    // fallback sample
-    setBuyers([
-      { id: 1, name: "Buyer A", total: 1200, paid: 800, contact: "123456" },
-      { id: 2, name: "Buyer B", total: 3400, paid: 1000, contact: "987654" },
-    ]);
-  }, []);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem("buyers", JSON.stringify(buyers));
-    } catch (err) {}
-  }, [buyers]);
-
-  const applyQuickFilter = (mode: string) => {
-    setFilterMode(mode);
-    if (mode === "today") {
-      const d = formatDate(today);
-      setFromDate(d);
-      setToDate(d);
-    } else if (mode === "thisWeek") {
-      const firstDayOfWeek = new Date(today);
-      firstDayOfWeek.setDate(today.getDate() - today.getDay());
-      setFromDate(formatDate(firstDayOfWeek));
-      setToDate(formatDate(today));
-    } else if (mode === "thisMonth") {
-      setFromDate(
-        formatDate(new Date(today.getFullYear(), today.getMonth(), 1))
-      );
-      setToDate(formatDate(today));
-    }
-  };
+  // handlers
 
   const handleSaveBuyer = async () => {
     if (!newBuyer.name || !newBuyer.contact) return;
@@ -88,16 +75,7 @@ const BuyerDashboard = () => {
       return;
     }
 
-    setBuyers((prev) => [
-      ...prev,
-      {
-        id: Date.now(),
-        name: newBuyer.name,
-        total: 0,
-        paid: 0,
-        contact: newBuyer.contact,
-      },
-    ]);
+    buyersRefetch();
     setNewBuyer({ name: "", contact: "" });
     setIsModalOpen(false);
   };
@@ -105,10 +83,6 @@ const BuyerDashboard = () => {
   const totalAmount = buyers.reduce((sum, b) => sum + (b.total || 0), 0);
   const totalPaid = buyers.reduce((sum, b) => sum + (b.paid || 0), 0);
   const totalDue = totalAmount - totalPaid;
-
-  const filtered = buyers.filter((b) =>
-    b.name.toLowerCase().includes(buyerFilter.toLowerCase())
-  );
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen text-gray-900">
@@ -151,42 +125,23 @@ const BuyerDashboard = () => {
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3 mb-6">
-        {["today", "thisWeek", "thisMonth", "custom"].map((mode) => (
-          <button
-            key={mode}
-            onClick={() => applyQuickFilter(mode)}
-            className={`px-4 py-2 rounded-lg border text-sm font-medium shadow-sm transition ${
-              filterMode === mode
-                ? "bg-indigo-600 text-white border-indigo-600"
-                : "bg-white border-gray-300 text-gray-700 hover:bg-indigo-50"
-            }`}
-          >
-            {mode === "today"
-              ? "Today"
-              : mode === "thisWeek"
-              ? "This Week"
-              : mode === "thisMonth"
-              ? "This Month"
-              : "Custom"}
-          </button>
-        ))}
-
-        {filterMode === "custom" && (
-          <div className="flex gap-2">
-            <input
-              type="date"
-              value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
-              className="input input-sm input-bordered bg-white"
-            />
-            <input
-              type="date"
-              value={toDate}
-              onChange={(e) => setToDate(e.target.value)}
-              className="input input-sm input-bordered bg-white"
-            />
-          </div>
-        )}
+        {/* Payment Status Filter */}
+        <div className="flex gap-2">
+          {["all", "paid", "partial"].map((status) => (
+            <button
+              key={status}
+              onClick={() => setStatusFilter(status)}
+              className={`px-4 py-1 rounded-full text-sm font-medium transition
+          ${
+            statusFilter === status
+              ? "bg-indigo-600 text-white shadow"
+              : "bg-white border border-gray-300 text-gray-700 hover:bg-indigo-50"
+          }`}
+            >
+              {status.toUpperCase()}
+            </button>
+          ))}
+        </div>
 
         <input
           type="text"
@@ -199,59 +154,60 @@ const BuyerDashboard = () => {
 
       {/* Buyer Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filtered.length === 0 ? (
-          <p className="text-gray-500 italic">No buyers found</p>
-        ) : (
-          filtered.map((b) => {
-            const due = (b.total || 0) - (b.paid || 0);
-            const status =
-              due === 0 ? "paid" : b.paid === 0 ? "unpaid" : "partial";
-            return (
-              <motion.div
-                key={b.name}
-                whileHover={{
-                  y: -3,
-                  boxShadow: "0px 8px 18px rgba(0,0,0,0.08)",
-                }}
-                className={`relative rounded-xl p-5 transition-all border cursor-pointer ${
-                  status === "paid"
-                    ? "bg-indigo-50 border-indigo-200"
-                    : status === "partial"
-                    ? "bg-orange-50 border-orange-200"
-                    : "bg-red-50 border-red-200"
-                }`}
-                onClick={() =>
-                  navigate(`/buyers/${encodeURIComponent(b.name)}`, {
-                    state: { buyer: b },
-                  })
-                }
-              >
-                <div className="flex justify-between items-center">
-                  <h2 className="text-lg font-semibold text-gray-800">
-                    {b.name}
-                  </h2>
-                  <span
-                    className={`badge text-white ${
-                      status === "paid"
-                        ? "badge-primary"
-                        : status === "partial"
-                        ? "badge-warning"
-                        : "badge-error"
-                    }`}
-                  >
-                    {status.toUpperCase()}
-                  </span>
-                </div>
-                <p className="text-sm text-gray-600">Total: ₹{b.total}</p>
-                <p className="text-sm text-gray-600">Paid: ₹{b.paid}</p>
-                <p className="text-sm text-gray-600">Due: ₹{due}</p>
-                <p className="text-xs text-gray-400 italic">
-                  Contact: {b.contact}
-                </p>
-              </motion.div>
-            );
-          })
+        {buyersLoading && buyers.length === 0 && (
+          <p className="text-gray-500 italic">Loading buyers...</p>
         )}
+        {!buyersLoading && buyers.length === 0 && (
+          <p className="text-gray-500 italic">No buyers found.</p>
+        )}
+        {buyers.map((b) => {
+          const due = (b.total || 0) - (b.paid || 0);
+          const status = due === 0 ? "paid" : "partial";
+          return (
+            <motion.div
+              key={b.name}
+              whileHover={{
+                y: -3,
+                boxShadow: "0px 8px 18px rgba(0,0,0,0.08)",
+              }}
+              className={`relative rounded-xl p-5 transition-all border cursor-pointer ${
+                status === "paid"
+                  ? "bg-indigo-50 border-indigo-200"
+                  : status === "partial"
+                  ? "bg-orange-50 border-orange-200"
+                  : "bg-red-50 border-red-200"
+              }`}
+              onClick={() =>
+                navigate(`/buyers/${encodeURIComponent(b.name)}`, {
+                  state: { buyer: b },
+                })
+              }
+            >
+              <div className="flex justify-between items-center">
+                <h2 className="text-lg font-semibold text-gray-800">
+                  {b.name}
+                </h2>
+                <span
+                  className={`badge text-white ${
+                    status === "paid"
+                      ? "badge-primary"
+                      : status === "partial"
+                      ? "badge-warning"
+                      : "badge-error"
+                  }`}
+                >
+                  {status.toUpperCase()}
+                </span>
+              </div>
+              <p className="text-sm text-gray-600">Total: ₹{b.total}</p>
+              <p className="text-sm text-gray-600">Paid: ₹{b.paid}</p>
+              <p className="text-sm text-gray-600">Due: ₹{due}</p>
+              <p className="text-xs text-gray-400 italic">
+                Contact: {b.contact}
+              </p>
+            </motion.div>
+          );
+        })}
       </div>
 
       {/* Add Buyer Modal */}
