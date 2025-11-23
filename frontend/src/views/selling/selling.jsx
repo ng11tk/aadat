@@ -1,10 +1,21 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
-import { Plus } from "lucide-react";
 import SummaryModal from "./components/summary";
 import ItemCard from "./components/itemCard";
-import { FETCH_MODI_ITEMS, GET_BUYERS } from "../../graphql/query";
-import { useQuery } from "@apollo/client/react";
+import {
+  FETCH_MODI_ITEMS,
+  FIND_SALES_ORDERS,
+  GET_BUYERS,
+} from "../../graphql/query";
+import {
+  useMutation,
+  useQuery,
+  useLazyQuery,
+  useApolloClient,
+} from "@apollo/client/react";
+import {
+  INSERT_SALES_ORDER_ITEMS,
+  UPSERT_SALES_ORDER,
+} from "../../graphql/mutation";
 
 const SalesDashboard = () => {
   const [modiList, setModiList] = useState([]);
@@ -14,31 +25,23 @@ const SalesDashboard = () => {
   const [selectedBuyer, setSelectedBuyer] = useState(null);
   const [addedItems, setAddedItems] = useState([]);
 
-  // fetch buyers
-  const { error, data: fetchBuyers, loading } = useQuery(GET_BUYERS);
+  // fetch buyers on load
+  const { data: fetchBuyers } = useQuery(GET_BUYERS);
   const buyersData = fetchBuyers?.buyer_buyers || [];
   useEffect(() => {
     if (!fetchBuyers) return;
-    const formatted = buyersData.map((b) => ({
-      id: b.id,
-      buyer_name: b.name,
-    }));
+    const formatted = buyersData.map((b) => ({ id: b.id, buyer_name: b.name }));
     setBuyers(formatted);
   }, [fetchBuyers]);
 
-  // fetch modi list with onloading items
-  const {
-    error: modiError,
-    data: modiData,
-    loading: modiLoading,
-  } = useQuery(FETCH_MODI_ITEMS, {
-    variables: { unloading_date: new Date().toISOString().split("T")[0] },
-  });
+  // lazily fetch modi items
+  const [loadModi, { data: modiData, loading: modiLoading }] =
+    useLazyQuery(FETCH_MODI_ITEMS);
   const modiItemsData = modiData?.opening_unloading || [];
+
   useEffect(() => {
     if (!modiData) return;
 
-    // Merge entries that share the same name by concatenating their unloading_items
     const mergedByName = Object.values(
       (modiItemsData || []).reduce((acc, m) => {
         const key = m.name;
@@ -62,10 +65,10 @@ const SalesDashboard = () => {
     const formatted = mergedByName.map((m) => ({
       id: m.id,
       modi_name: m.name,
-      items: m.unloading_items
+      items: (m.unloading_items || [])
         .filter((it) => it.isSellable)
         .map((it) => it.name),
-      weight: m.unloading_items.reduce(
+      weight: (m.unloading_items || []).reduce(
         (sum, it) => sum + (it.remaining_quantity || 0),
         0
       ),
@@ -74,7 +77,20 @@ const SalesDashboard = () => {
     setModiList(formatted);
   }, [modiData]);
 
-  // handers
+  const handleLoadModi = () => {
+    if (modiLoading) return;
+    loadModi({
+      variables: { unloading_date: new Date().toISOString().split("T")[0] },
+    });
+  };
+
+  // Apollo client for imperative queries (used to always fetch fresh data)
+  const client = useApolloClient();
+
+  // mutations
+  const [upsertSalesOrder] = useMutation(UPSERT_SALES_ORDER);
+  const [insertSalesOrderItems] = useMutation(INSERT_SALES_ORDER_ITEMS);
+
   const totalAmount = useMemo(
     () =>
       addedItems.reduce((sum, it) => sum + (it.qty || 0) * (it.rate || 0), 0),
@@ -89,7 +105,6 @@ const SalesDashboard = () => {
           p.item_name === payload.item_name &&
           Number(p.rate) === Number(payload.rate)
       );
-
       if (idx >= 0) {
         const next = [...prev];
         next[idx] = {
@@ -98,7 +113,6 @@ const SalesDashboard = () => {
         };
         return next;
       }
-
       return [...prev, payload];
     });
   };
@@ -108,13 +122,7 @@ const SalesDashboard = () => {
 
   const handleSubmit = async () => {
     if (!selectedBuyer) return alert("Select a buyer first.");
-    console.log("🚀 ~ handleSubmit ~ addedItems:", addedItems);
     if (addedItems.length === 0) return alert("Add at least one item.");
-
-    // check if there is any sales order with this buyer and date
-    // fetch existing total_amount for that order
-    // update total_amount by adding new totalAmount to existing one
-    // else create new order
 
     const payload = {
       buyer_id: selectedBuyer,
@@ -134,8 +142,92 @@ const SalesDashboard = () => {
     };
 
     console.log("✔ Submit Payload", payload);
-    alert("Submitted. Check console.");
 
+    try {
+      const { data: existingOrdersData } = await client.query({
+        query: FIND_SALES_ORDERS,
+        variables: {
+          where: {
+            buyer_id: { _eq: selectedBuyer },
+            order_date: { _eq: new Date().toISOString().split("T")[0] },
+          },
+        },
+        fetchPolicy: "network-only",
+      });
+      const existingOrder = existingOrdersData?.sales_sales_order?.[0] || null;
+      console.log("🚀 ~ handleSubmit ~ existingOrder:", existingOrder);
+
+      if (existingOrder) {
+        // Save previous total to allow rollback if item insertion fails
+        const previousTotal = existingOrder.total_amount || 0;
+        const updatedTotal = previousTotal + totalAmount;
+
+        // Update the sales order total first
+        const { data: updateData } = await upsertSalesOrder({
+          variables: {
+            object: {
+              id: existingOrder.id,
+              buyer_id: selectedBuyer,
+              total_amount: updatedTotal,
+              order_date: new Date().toISOString().split("T")[0],
+              items_missing_rate_count: 0,
+            },
+          },
+        });
+        console.log("Sales order total updated:", updateData);
+        // Then insert the new items. If this fails, attempt to rollback the total_amount.
+        try {
+          const { data: insertItemsData } = await insertSalesOrderItems({
+            variables: {
+              objects: addedItems.map((it) => ({
+                order_id: existingOrder.id,
+                supplier_name: it.modi_name,
+                item_name: it.item_name,
+                quantity: it.qty,
+                unit_price: it.rate,
+                item_weight: it.weight,
+                item_date: new Date().toISOString().split("T")[0],
+              })),
+            },
+          });
+          console.log("New sales order items added:", insertItemsData);
+        } catch (insertErr) {
+          console.error(
+            "Failed to insert sales order items, attempting rollback:",
+            insertErr
+          );
+          try {
+            // Rollback total_amount to previous value
+            const { data: rollbackData } = await upsertSalesOrder({
+              variables: {
+                object: {
+                  id: existingOrder.id,
+                  total_amount: previousTotal,
+                },
+              },
+            });
+            console.log("Rollback successful:", rollbackData);
+          } catch (rollbackErr) {
+            console.error("Rollback failed:", rollbackErr);
+          }
+
+          // Surface error to user and stop submission
+          return alert(
+            "Failed to add order items. The order has been rolled back (or rollback attempted). Check console."
+          );
+        }
+      } else {
+        const { data: insertData } = await upsertSalesOrder({
+          variables: { object: payload },
+        });
+        console.log("New sales order created:", insertData);
+      }
+    } catch (err) {
+      console.error("Error finding or creating sales order:", err);
+      return alert("Error finding existing sales orders.");
+    }
+
+    alert("Submitted. Check console.");
     setAddedItems([]);
     setSelectedBuyer(null);
     setSelectedModi(null);
@@ -143,11 +235,8 @@ const SalesDashboard = () => {
 
   return (
     <div className="p-6 bg-white min-h-screen text-gray-900">
-      {/* HEADER */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Sell Dashboard</h1>
-
-        {/* Buyer Select */}
         <div className="relative w-60">
           <label className="block text-sm font-semibold mb-1">
             Select Buyer
@@ -175,7 +264,6 @@ const SalesDashboard = () => {
               />
             </svg>
           </div>
-
           {buyerDropdownOpen && (
             <div className="absolute top-full left-0 right-0 bg-white shadow-lg rounded-xl border mt-1 z-20 max-h-60 overflow-auto">
               {buyers.map((b) => (
@@ -194,12 +282,20 @@ const SalesDashboard = () => {
           )}
         </div>
       </div>
-      {/* GRID LAYOUT */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* LEFT: MODI LIST */}
-        <div className="bg-gray-50 shadow rounded-xl p-4 border border-gray-200">
-          <h2 className="text-lg font-semibold mb-4">Modi List</h2>
 
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-gray-50 shadow rounded-xl p-4 border border-gray-200">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">Modi List</h2>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleLoadModi}
+                className="px-3 py-1 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700"
+              >
+                {modiLoading ? "Loading..." : "Load"}
+              </button>
+            </div>
+          </div>
           <ul className="space-y-2">
             {modiList.map((m) => (
               <li
@@ -223,9 +319,7 @@ const SalesDashboard = () => {
           </ul>
         </div>
 
-        {/* RIGHT 2 COLUMNS */}
         <div className="col-span-2">
-          {/* SHOW ITEMS */}
           {selectedModi && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               {selectedModi.items.map((item) => (
@@ -248,7 +342,6 @@ const SalesDashboard = () => {
             </div>
           )}
 
-          {/* SUMMARY CARD */}
           <div className="bg-gray-100 p-4 rounded-lg border mb-6 flex justify-between items-center">
             <span className="font-semibold text-gray-800">
               Total: <span className="text-indigo-600">₹{totalAmount}</span>
@@ -259,7 +352,6 @@ const SalesDashboard = () => {
             </span>
           </div>
 
-          {/* ACTIONS */}
           <div className="flex gap-4">
             <button
               onClick={() =>
@@ -270,7 +362,6 @@ const SalesDashboard = () => {
             >
               Summary
             </button>
-
             <button
               onClick={handleSubmit}
               className="px-6 py-2 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700 disabled:opacity-40"
