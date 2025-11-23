@@ -145,3 +145,24 @@ export const GET_BUYERS = gql`
     }
   }
 `;
+
+export const FETCH_MODI_ITEMS = gql`
+  query FETCH_MODI_ITEMS($unloading_date: date = "") {
+    opening_unloading(
+      where: {
+        isDayClose: { _eq: false }
+        unloading_date: { _eq: $unloading_date }
+      }
+    ) {
+      id
+      name
+      unloading_items {
+        id
+        name
+        quantity
+        remaining_quantity
+        isSellable
+      }
+    }
+  }
+`;

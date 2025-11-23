@@ -3,27 +3,78 @@ import { motion } from "framer-motion";
 import { Plus } from "lucide-react";
 import SummaryModal from "./components/summary";
 import ItemCard from "./components/itemCard";
+import { FETCH_MODI_ITEMS, GET_BUYERS } from "../../graphql/query";
+import { useQuery } from "@apollo/client/react";
 
-/** SAMPLE DATA **/
-const SAMPLE_MODI_LIST = [
-  { id: 1, modi_name: "Modi A", items: ["Sugar", "Rice", "Wheat"], weight: 20 },
-  { id: 2, modi_name: "Modi B", items: ["Rice", "Salt"], weight: 15 },
-  { id: 3, modi_name: "Modi C", items: ["Oil", "Ghee"], weight: 10 },
-];
-const SAMPLE_BUYERS = [
-  { id: "b1", buyer_name: "Buyer One" },
-  { id: "b2", buyer_name: "Buyer Two" },
-  { id: "b3", buyer_name: "Buyer Three" },
-];
-
-const SellDashboard = () => {
-  const [modiList] = useState(SAMPLE_MODI_LIST);
-  const [buyers] = useState(SAMPLE_BUYERS);
+const SalesDashboard = () => {
+  const [modiList, setModiList] = useState([]);
+  const [buyers, setBuyers] = useState([]);
   const [buyerDropdownOpen, setBuyerDropdownOpen] = useState(false);
   const [selectedModi, setSelectedModi] = useState(null);
   const [selectedBuyer, setSelectedBuyer] = useState(null);
   const [addedItems, setAddedItems] = useState([]);
 
+  // fetch buyers
+  const { error, data: fetchBuyers, loading } = useQuery(GET_BUYERS);
+  const buyersData = fetchBuyers?.buyer_buyers || [];
+  useEffect(() => {
+    if (!fetchBuyers) return;
+    const formatted = buyersData.map((b) => ({
+      id: b.id,
+      buyer_name: b.name,
+    }));
+    setBuyers(formatted);
+  }, [fetchBuyers]);
+
+  // fetch modi list with onloading items
+  const {
+    error: modiError,
+    data: modiData,
+    loading: modiLoading,
+  } = useQuery(FETCH_MODI_ITEMS, {
+    variables: { unloading_date: new Date().toISOString().split("T")[0] },
+  });
+  const modiItemsData = modiData?.opening_unloading || [];
+  useEffect(() => {
+    if (!modiData) return;
+
+    // Merge entries that share the same name by concatenating their unloading_items
+    const mergedByName = Object.values(
+      (modiItemsData || []).reduce((acc, m) => {
+        const key = m.name;
+        if (!acc[key]) {
+          acc[key] = {
+            id: m.id,
+            name: m.name,
+            unloading_items: Array.isArray(m.unloading_items)
+              ? [...m.unloading_items]
+              : [],
+          };
+        } else {
+          acc[key].unloading_items = acc[key].unloading_items.concat(
+            m.unloading_items || []
+          );
+        }
+        return acc;
+      }, {})
+    );
+
+    const formatted = mergedByName.map((m) => ({
+      id: m.id,
+      modi_name: m.name,
+      items: m.unloading_items
+        .filter((it) => it.isSellable)
+        .map((it) => it.name),
+      weight: m.unloading_items.reduce(
+        (sum, it) => sum + (it.remaining_quantity || 0),
+        0
+      ),
+    }));
+
+    setModiList(formatted);
+  }, [modiData]);
+
+  // handers
   const totalAmount = useMemo(
     () =>
       addedItems.reduce((sum, it) => sum + (it.qty || 0) * (it.rate || 0), 0),
@@ -55,15 +106,31 @@ const SellDashboard = () => {
   const handleDeleteItem = (index) =>
     setAddedItems((prev) => prev.filter((_, i) => i !== index));
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!selectedBuyer) return alert("Select a buyer first.");
+    console.log("🚀 ~ handleSubmit ~ addedItems:", addedItems);
     if (addedItems.length === 0) return alert("Add at least one item.");
+
+    // check if there is any sales order with this buyer and date
+    // fetch existing total_amount for that order
+    // update total_amount by adding new totalAmount to existing one
+    // else create new order
 
     const payload = {
       buyer_id: selectedBuyer,
-      items: addedItems,
-      total: totalAmount,
-      sell_date: new Date().toISOString(),
+      sales_order_items: {
+        data: addedItems.map((it) => ({
+          supplier_name: it.modi_name,
+          item_name: it.item_name,
+          quantity: it.qty,
+          unit_price: it.rate,
+          item_weight: it.weight,
+          item_date: new Date().toISOString().split("T")[0],
+        })),
+      },
+      total_amount: totalAmount,
+      order_date: new Date().toISOString().split("T")[0],
+      items_missing_rate_count: 0,
     };
 
     console.log("✔ Submit Payload", payload);
@@ -225,4 +292,4 @@ const SellDashboard = () => {
   );
 };
 
-export default SellDashboard;
+export default SalesDashboard;

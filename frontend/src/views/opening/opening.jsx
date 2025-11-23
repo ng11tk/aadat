@@ -16,7 +16,7 @@ const initialItem = {
   name: "",
   amount_paid: 100,
   advance: 10,
-  vehicle_number: "hr30ar4004",
+  vehicle_number: "hr73ar0000",
   bhada: 10,
   isDayClose: true,
   kharcha_details: {
@@ -32,7 +32,7 @@ const initialItem = {
       quantity: 10,
       remaining_quantity: 10,
       unit: "quintal",
-      isSellable: false,
+      isSellable: true,
     },
   ],
 };
@@ -171,7 +171,7 @@ const OpeningStock = () => {
   };
 
   // Day close: update unloading isDayClose true and insert remaining_items
-  const handleDayCloseItem = async (id) => {
+  const handleCloseItems = async (id) => {
     try {
       const itemToClose = incomingItems.find((item) => item.id === id);
       if (!itemToClose) return;
@@ -187,14 +187,14 @@ const OpeningStock = () => {
       );
 
       if (updErr) {
-        console.error("🚀 ~ handleDayCloseItem ~ update error:", updErr);
+        console.error("🚀 ~ handleCloseItems ~ update error:", updErr);
         return;
       }
 
       // 2) refetch to ensure server-authoritative view
       await refetchOpeningData();
     } catch (err) {
-      console.error("🚀 ~ handleDayCloseItem ~ exception:", err);
+      console.error("🚀 ~ handleCloseItems ~ exception:", err);
     }
   };
 
@@ -244,7 +244,7 @@ const OpeningStock = () => {
                 key={item.id}
                 item={item}
                 isClosed={true}
-                onDayOpen={handleDayCloseItem}
+                onDayOpen={handleCloseItems}
               />
             ))}
         </div>
@@ -268,7 +268,7 @@ const OpeningStock = () => {
                 item={item}
                 isClosed={false}
                 onDelete={handleDeleteItem}
-                onDayClose={handleDayCloseItem}
+                onDayClose={handleCloseItems}
               />
             ))}
         </div>
