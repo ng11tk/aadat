@@ -177,8 +177,8 @@ export const FIND_SALES_ORDERS = gql`
   }
 `;
 
-export const FETCH_BUYER_DETAILS = gql`
-  query FETCH_BUYER_DETAILS($whereBuyer: buyer_buyers_bool_exp = {}) {
+export const FETCH_BUYERS_LIST = gql`
+  query FETCH_BUYERS_LIST($whereBuyer: buyer_buyers_bool_exp = {}) {
     buyer_buyers(where: $whereBuyer) {
       id
       name
@@ -187,6 +187,51 @@ export const FETCH_BUYER_DETAILS = gql`
       total_amount
       remaining_amount
       payment_status
+    }
+  }
+`;
+
+export const FETCH_BUYER_DETAILS = gql`
+  query FETCH_BUYER_DETAILS(
+    $id: uuid = ""
+    $where: buyer_buyer_purchase_bool_exp = {}
+  ) {
+    buyer_buyers_by_pk(id: $id) {
+      id
+      name
+      phone
+      address
+      payment_status
+      total_amount
+      remaining_amount
+      buyer_purchases_aggregate(where: $where) {
+        aggregate {
+          sum {
+            remaining_amount
+            total_amount
+          }
+        }
+        nodes {
+          id
+          total_amount
+          remaining_amount
+          payment_status
+          purchase_date
+          sales_order {
+            order_date
+            items_missing_rate_count
+            sales_order_items {
+              item_date
+              item_name
+              item_weight
+              quantity
+              supplier_name
+              unit
+              unit_price
+            }
+          }
+        }
+      }
     }
   }
 `;

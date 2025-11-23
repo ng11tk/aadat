@@ -72,3 +72,13 @@ export const INSERT_SALES_ORDER_ITEMS = gql`
     }
   }
 `;
+
+export const INSERT_BUYER_TRANSACTION = gql`
+  mutation INSERT_BUYER_TRANSACTION(
+    $objects: [buyer_buyer_transactions_insert_input!] = {}
+  ) {
+    insert_buyer_buyer_transactions(objects: $objects) {
+      affected_rows
+    }
+  }
+`;

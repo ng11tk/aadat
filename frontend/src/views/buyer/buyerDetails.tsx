@@ -1,6 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { use, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "react-router-dom";
+import { useMutation, useQuery } from "@apollo/client/react";
+import { FETCH_BUYER_DETAILS } from "../../graphql/query";
+import { INSERT_BUYER_TRANSACTION } from "../../graphql/mutation";
+import { promiseResolver } from "../../utils/promisResolver";
 
 const formatDate = (date: Date) => date.toISOString().split("T")[0];
 
@@ -8,7 +12,7 @@ const BuyerDetails = () => {
   const today = new Date();
   const location = useLocation();
   const buyerFromState = location.state?.buyer || {};
-  const [buyer, setBuyer] = useState<any>({});
+  const [buyer, setBuyer] = useState<any>(buyerFromState);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [modalTransaction, setModalTransaction] = useState<any | null>(null);
   const [filterMode, setFilterMode] = useState("thisMonth");
@@ -18,29 +22,45 @@ const BuyerDetails = () => {
   const [toDate, setToDate] = useState(formatDate(today));
   const [statusFilter, setStatusFilter] = useState("all");
 
+  // insert buyer transaction mutation
+  const [insertBuyerTransaction] = useMutation(INSERT_BUYER_TRANSACTION);
+
+  // fetch buyer details
+  const {
+    error: buyerError,
+    data: buyerData,
+    loading: buyerLoading,
+    refetch: refetchBuyer,
+  } = useQuery(FETCH_BUYER_DETAILS, {
+    variables: { id: buyerFromState.id },
+  });
+
+  const buyerDetails = buyerData?.buyer_buyers_by_pk || {};
+
   useEffect(() => {
     // populate buyer
-    setBuyer(buyerFromState || {});
-
+    if (!buyerData) return;
     // try to load transactions for this buyer from localStorage (key: sales)
     try {
-      const sales = JSON.parse(localStorage.getItem("sales") || "[]");
-      const filtered = sales.filter(
-        (s: any) => s.buyer === (buyerFromState.name || buyerFromState.buyer)
-      );
       // normalize transactions
-      const t = filtered.map((s: any, idx: number) => ({
-        id: s.id || Date.now() + idx,
-        date: s.date || formatDate(new Date()),
-        total: s.grandTotalAmount || s.total || 0,
-        due: (s.grandTotalAmount || s.total || 0) - (s.paid || 0),
-        items: (s.groups || []).flatMap((g: any) => g.items || []),
-      }));
+      const t = buyerDetails.buyer_purchases_aggregate.nodes.map(
+        (s: any, idx: number) => ({
+          id: s.id,
+          date: s.purchase_date,
+          total: s.total_amount || 0,
+          due: s.remaining_amount || 0,
+          items: s.sales_order.sales_order_items.map((it: any) => ({
+            name: it.item_name,
+            quantity: it.quantity,
+            rate: it.unit_price,
+          })),
+        })
+      );
       setTransactions(t);
     } catch (err) {
       setTransactions([]);
     }
-  }, [buyerFromState]);
+  }, [buyerData]);
 
   const applyQuickFilter = (mode: string) => {
     setFilterMode(mode);
@@ -94,16 +114,28 @@ const BuyerDetails = () => {
     0
   );
 
-  const confirmPayment = () => {
+  const confirmPayment = async () => {
     // naive local update: subtract from due and persist to localStorage
-    const updated = transactions.map((tr) => {
-      const sel = selectedTransactions[tr.id];
-      if (!sel) return tr;
-      const amount = sel.amount || 0;
-      return { ...tr, due: Math.max(0, tr.due - amount) };
+    const output = Object.entries(selectedTransactions).map(([id, value]) => {
+      return { buyer_purchase_id: id, amount: value.amount };
     });
-    setTransactions(updated);
+    console.log("🚀 ~ confirmPayment ~ updated:", output);
+
+    const [data, error] = await promiseResolver(
+      insertBuyerTransaction({
+        variables: { objects: output },
+      })
+    );
+    if (error) {
+      alert("Error recording payment. Please try again.");
+      return;
+    }
+    alert("Payment recorded successfully.");
+
+    // reset selection
     setSelectedTransactions({});
+    // refetch buyer details to reflect updated dues
+    refetchBuyer();
   };
 
   return (

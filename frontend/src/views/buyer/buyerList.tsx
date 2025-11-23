@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { useMutation, useQuery } from "@apollo/client/react";
 import { INSERT_BUYER } from "../../graphql/mutation";
 import { promiseResolver } from "../../utils/promisResolver";
-import { FETCH_BUYER_DETAILS } from "../../graphql/query";
+import { FETCH_BUYERS_LIST } from "../../graphql/query";
 import { useDebounce } from "../../utils/debounce";
 
 const BuyerDashboard = () => {
@@ -38,7 +38,7 @@ const BuyerDashboard = () => {
     data: buyersData,
     loading: buyersLoading,
     refetch: buyersRefetch,
-  } = useQuery(FETCH_BUYER_DETAILS, {
+  } = useQuery(FETCH_BUYERS_LIST, {
     variables: { whereBuyer },
     fetchPolicy: "network-only",
   });
