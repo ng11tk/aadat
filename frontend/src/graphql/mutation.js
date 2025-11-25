@@ -82,3 +82,12 @@ export const INSERT_BUYER_TRANSACTION = gql`
     }
   }
 `;
+export const INSERT_EXPENSE_TRANSACTION = gql`
+  mutation INSERT_EXPENSE_TRANSACTION(
+    $objects: [expense_transactions_insert_input!] = {}
+  ) {
+    insert_expense_transactions(objects: $objects) {
+      affected_rows
+    }
+  }
+`;

@@ -1,6 +1,10 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Plus } from "lucide-react";
+import { useMutation, useQuery } from "@apollo/client/react";
+import { INSERT_EXPENSE_TRANSACTION } from "../../graphql/mutation";
+import { promiseResolver } from "../../utils/promisResolver";
+import { GET_EXPENSE_CATEGORIES_AGGREGATE } from "../../graphql/query";
 
 const today = new Date();
 const formatDate = (date) => date.toISOString().split("T")[0];
@@ -14,63 +18,54 @@ const categoryColors = {
   Bhada: "bg-pink-100 text-pink-800",
   "Market Fee": "bg-teal-100 text-teal-800",
 };
+const expenseSample = [
+  {
+    id: 1,
+    category: "Food",
+    description: "Lunch for team",
+    amount: 500,
+    date: "2025-09-18",
+  },
+  {
+    id: 2,
+    category: "Repair",
+    description: "Machine repair",
+    amount: 1200,
+    date: "2025-09-16",
+  },
+  {
+    id: 3,
+    category: "Commission",
+    person: "Ramesh",
+    amount: 2000,
+    date: "2025-09-15",
+  },
+  {
+    id: 4,
+    category: "Salary",
+    person: "Sita",
+    amount: 15000,
+    date: "2025-09-01",
+  },
+  {
+    id: 6,
+    category: "Bhada",
+    vehicle: "MH12AB1234",
+    modi: "Supplier X",
+    item: "Fertilizer",
+    amount: 800,
+    date: "2025-09-12",
+  },
+  { id: 7, category: "Market Fee", amount: 100, date: "2025-09-14" },
+];
 
 const ExpensePage = () => {
-  const [expenses, setExpenses] = useState([
-    {
-      id: 1,
-      category: "Food",
-      description: "Lunch for team",
-      amount: 500,
-      date: "2025-09-18",
-    },
-    {
-      id: 2,
-      category: "Repair",
-      description: "Machine repair",
-      amount: 1200,
-      date: "2025-09-16",
-    },
-    {
-      id: 3,
-      category: "Commission",
-      person: "Ramesh",
-      amount: 2000,
-      date: "2025-09-15",
-    },
-    {
-      id: 4,
-      category: "Salary",
-      person: "Sita",
-      amount: 15000,
-      date: "2025-09-01",
-    },
-    {
-      id: 5,
-      category: "Advance",
-      person: "Manoj",
-      amount: 3000,
-      date: "2025-09-10",
-    },
-    {
-      id: 6,
-      category: "Bhada",
-      vehicle: "MH12AB1234",
-      modi: "Supplier X",
-      item: "Fertilizer",
-      amount: 800,
-      date: "2025-09-12",
-    },
-    { id: 7, category: "Market Fee", amount: 100, date: "2025-09-14" },
-  ]);
-
-  const [filterCategory, setFilterCategory] = useState("all");
+  const [expenses, setExpenses] = useState([]);
   const [filterMode, setFilterMode] = useState("thisMonth");
   const [fromDate, setFromDate] = useState(
     formatDate(new Date(today.getFullYear(), today.getMonth(), 1))
   );
   const [toDate, setToDate] = useState(formatDate(today));
-
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newExpense, setNewExpense] = useState({
     category: "Food",
@@ -83,6 +78,44 @@ const ExpensePage = () => {
     date: "",
   });
 
+  // insert expense
+  const [insertExpenseTransaction] = useMutation(INSERT_EXPENSE_TRANSACTION);
+
+  // Build `where1` for aggregates: include date range and category when set
+  const whereTransaction = useMemo(() => {
+    const w = {};
+    if (!fromDate && toDate) {
+      w.date = { _eq: toDate };
+    }
+    // only add date filter when both fromDate and toDate are present
+    if (fromDate && toDate) {
+      w.date = { _gte: fromDate, _lte: toDate };
+    }
+
+    return w;
+  }, [fromDate, toDate]);
+
+  // FETCH EXPENSES AND AGGREGATES (server-side filtering)
+  const { data: expenseData } = useQuery(GET_EXPENSE_CATEGORIES_AGGREGATE, {
+    variables: { whereTransaction },
+    fetchPolicy: "network-only",
+  });
+
+  const expenseCategories = expenseData?.expense_categories || [];
+
+  useEffect(() => {
+    if (!expenseData) return;
+    // process expenseData to setExpenses if needed
+    const newExpenses = expenseCategories.map((cat) => ({
+      id: cat.id,
+      category: cat.category,
+      advance: cat.transactions_aggregate?.aggregate?.sum?.advance || 0,
+      amount: cat.transactions_aggregate?.aggregate?.sum?.amount || 0,
+    }));
+    setExpenses(newExpenses);
+  }, [expenseData]);
+
+  // quick filter
   const applyQuickFilter = (mode) => {
     setFilterMode(mode);
     if (mode === "today") setFromDate(setToDate(formatDate(today)));
@@ -99,29 +132,40 @@ const ExpensePage = () => {
     }
   };
 
-  const filteredExpenses = expenses.filter((e) => {
-    const date = new Date(e.date),
-      from = new Date(fromDate),
-      to = new Date(toDate);
-    const inRange = date >= from && date <= to;
-    return (
-      (filterCategory === "all" || e.category === filterCategory) && inRange
-    );
-  });
+  const totalAmount = expenses.reduce((sum, e) => sum + e.amount, 0);
 
-  const totalAmount = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
-
-  const handleSaveExpense = () => {
+  const handleSaveExpense = async () => {
     if (!newExpense.category || !newExpense.amount) return;
-    setExpenses((prev) => [
-      ...prev,
-      {
-        id: Date.now(),
-        ...newExpense,
-        amount: Number(newExpense.amount),
-        date: newExpense.date || formatDate(today),
-      },
-    ]);
+
+    const insertObject = {
+      expense_emp_id: null,
+      category: newExpense.category,
+      advance: 0,
+      amount: Number(newExpense.amount),
+      description: newExpense.description || null,
+      bhada_details:
+        newExpense.category === "Bhada"
+          ? {
+              vehicle: newExpense.vehicle,
+              modi: newExpense.modi,
+              item: newExpense.item,
+            }
+          : null,
+      date: formatDate(today),
+    };
+
+    // Call the mutation to insert expense transaction
+    const [data, error] = await promiseResolver(
+      insertExpenseTransaction({
+        variables: {
+          objects: insertObject,
+        },
+      })
+    );
+    if (error) {
+      console.error("Error inserting expense transaction:", error);
+    }
+
     setNewExpense({
       category: "Food",
       description: "",
@@ -150,27 +194,6 @@ const ExpensePage = () => {
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 mb-6 items-center">
-        <select
-          className="px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 shadow-sm focus:ring-2 focus:ring-emerald-200"
-          value={filterCategory}
-          onChange={(e) => setFilterCategory(e.target.value)}
-        >
-          {[
-            "all",
-            "Food",
-            "Repair",
-            "Commission",
-            "Salary",
-            "Advance",
-            "Bhada",
-            "Market Fee",
-          ].map((cat) => (
-            <option key={cat} value={cat}>
-              {cat}
-            </option>
-          ))}
-        </select>
-
         {["today", "thisWeek", "thisMonth", "custom"].map((mode) => (
           <button
             key={mode}
@@ -222,10 +245,10 @@ const ExpensePage = () => {
 
       {/* Expense Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredExpenses.length === 0 && (
+        {expenses.length === 0 && (
           <p className="text-gray-500 italic">No expenses found</p>
         )}
-        {filteredExpenses.map((exp) => (
+        {expenses.map((exp) => (
           <motion.div
             key={exp.id}
             whileHover={{ y: -3, boxShadow: "0px 8px 20px rgba(0,0,0,0.1)" }}
@@ -241,9 +264,9 @@ const ExpensePage = () => {
                 <h3 className="text-lg font-semibold text-gray-800">
                   {exp.category}
                 </h3>
-                <span className="text-sm text-gray-500">
+                {/* <span className="text-sm text-gray-500">
                   {new Date(exp.date).toLocaleDateString()}
-                </span>
+                </span> */}
               </div>
 
               {/* Details */}
@@ -274,12 +297,22 @@ const ExpensePage = () => {
                 )}
               </div>
 
-              {/* Amount */}
+              {/* Amount and Advance */}
               <div className="mt-4 flex justify-between items-center">
-                <span className="text-sm text-gray-500">Amount</span>
-                <span className="text-lg font-bold text-emerald-600">
-                  ₹{exp.amount}
-                </span>
+                <div>
+                  <span className="text-sm text-gray-500">Amount</span>
+                  <div className="text-lg font-bold text-emerald-600">
+                    ₹{exp.amount}
+                  </div>
+                </div>
+                {exp.advance >= 0 && (
+                  <div className="text-right">
+                    <span className="text-sm text-yellow-600">Advance</span>
+                    <div className="text-lg font-bold text-yellow-600">
+                      ₹{exp.advance}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </motion.div>
@@ -322,7 +355,6 @@ const ExpensePage = () => {
                   "Repair",
                   "Commission",
                   "Salary",
-                  "Advance",
                   "Bhada",
                   "Market Fee",
                 ].map((cat) => (
@@ -401,15 +433,6 @@ const ExpensePage = () => {
                 value={newExpense.amount}
                 onChange={(e) =>
                   setNewExpense({ ...newExpense, amount: e.target.value })
-                }
-              />
-
-              <input
-                type="date"
-                className="w-full px-3 py-2 text-gray-700 rounded-lg border border-gray-300 shadow-sm"
-                value={newExpense.date}
-                onChange={(e) =>
-                  setNewExpense({ ...newExpense, date: e.target.value })
                 }
               />
             </div>

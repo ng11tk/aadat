@@ -235,3 +235,23 @@ export const FETCH_BUYER_DETAILS = gql`
     }
   }
 `;
+
+export const GET_EXPENSE_CATEGORIES_AGGREGATE = gql`
+  query GET_EXPENSE_CATEGORIES_AGGREGATE(
+    $where: expense_categories_bool_exp = {}
+    $whereTransaction: expense_transactions_bool_exp = {}
+  ) {
+    expense_categories(where: $where) {
+      id
+      category
+      transactions_aggregate(where: $whereTransaction) {
+        aggregate {
+          sum {
+            advance
+            amount
+          }
+        }
+      }
+    }
+  }
+`;
