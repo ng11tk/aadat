@@ -5,6 +5,7 @@ import { useMutation, useQuery } from "@apollo/client/react";
 import { INSERT_EXPENSE_TRANSACTION } from "../../graphql/mutation";
 import { promiseResolver } from "../../utils/promisResolver";
 import { GET_EXPENSE_CATEGORIES_AGGREGATE } from "../../graphql/query";
+import { useNavigate } from "react-router-dom";
 
 const today = new Date();
 const formatDate = (date) => date.toISOString().split("T")[0];
@@ -60,6 +61,7 @@ const expenseSample = [
 ];
 
 const ExpensePage = () => {
+  const navigate = useNavigate();
   const [expenses, setExpenses] = useState([]);
   const [filterMode, setFilterMode] = useState("thisMonth");
   const [fromDate, setFromDate] = useState(
@@ -96,10 +98,13 @@ const ExpensePage = () => {
   }, [fromDate, toDate]);
 
   // FETCH EXPENSES AND AGGREGATES (server-side filtering)
-  const { data: expenseData } = useQuery(GET_EXPENSE_CATEGORIES_AGGREGATE, {
-    variables: { whereTransaction },
-    fetchPolicy: "network-only",
-  });
+  const { data: expenseData, refetch: expenseRefetch } = useQuery(
+    GET_EXPENSE_CATEGORIES_AGGREGATE,
+    {
+      variables: { whereTransaction },
+      fetchPolicy: "network-only",
+    }
+  );
 
   const expenseCategories = expenseData?.expense_categories || [];
 
@@ -165,7 +170,7 @@ const ExpensePage = () => {
     if (error) {
       console.error("Error inserting expense transaction:", error);
     }
-
+    expenseRefetch();
     setNewExpense({
       category: "Food",
       description: "",
@@ -253,6 +258,14 @@ const ExpensePage = () => {
             key={exp.id}
             whileHover={{ y: -3, boxShadow: "0px 8px 20px rgba(0,0,0,0.1)" }}
             className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden transition"
+            onClick={() =>
+              navigate(
+                `/expense/${encodeURIComponent(exp.category.toLowerCase())}`,
+                {
+                  state: { expense: exp },
+                }
+              )
+            }
           >
             {/* Category Color Strip */}
             <div className={`h-2 ${categoryColors[exp.category]}`} />

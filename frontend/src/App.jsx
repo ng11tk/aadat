@@ -20,6 +20,7 @@ import BuyerDashboard from "./views/buyer/buyerList";
 import BuyerDetails from "./views/buyer/buyerDetails";
 import ExpensePage from "./views/expense";
 import ProtectedRoute from "./components/protectedRoute";
+import ExpenseDetails from "./views/expense/expenseDetails";
 
 function Layout({ children }) {
   const location = useLocation();
@@ -117,6 +118,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <ExpensePage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/expense/:name"
+                element={
+                  <ProtectedRoute>
+                    <ExpenseDetails />
                   </ProtectedRoute>
                 }
               />

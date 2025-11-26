@@ -255,3 +255,22 @@ export const GET_EXPENSE_CATEGORIES_AGGREGATE = gql`
     }
   }
 `;
+export const FETCH_EXPENSE_TRANSACTIONS = gql`
+  query FETCH_EXPENSE_TRANSACTIONS(
+    $where: expense_transactions_bool_exp = {}
+    $order_by: [expense_transactions_order_by!] = { expense_date: desc }
+  ) {
+    expense_transactions(where: $where, order_by: $order_by) {
+      id
+      date
+      category
+      amount
+      advance
+      bhada_details
+      description
+      employee {
+        name
+      }
+    }
+  }
+`;
