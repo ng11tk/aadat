@@ -274,3 +274,12 @@ export const FETCH_EXPENSE_TRANSACTIONS = gql`
     }
   }
 `;
+
+export const FETCH_EMPLOYEES = gql`
+  query FETCH_EMPLOYEES {
+    expense_employees {
+      id
+      name
+    }
+  }
+`;

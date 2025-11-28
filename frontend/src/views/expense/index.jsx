@@ -4,7 +4,10 @@ import { Plus } from "lucide-react";
 import { useMutation, useQuery } from "@apollo/client/react";
 import { INSERT_EXPENSE_TRANSACTION } from "../../graphql/mutation";
 import { promiseResolver } from "../../utils/promisResolver";
-import { GET_EXPENSE_CATEGORIES_AGGREGATE } from "../../graphql/query";
+import {
+  FETCH_EMPLOYEES,
+  GET_EXPENSE_CATEGORIES_AGGREGATE,
+} from "../../graphql/query";
 import { useNavigate } from "react-router-dom";
 
 const today = new Date();
@@ -79,9 +82,18 @@ const ExpensePage = () => {
     amount: "",
     date: "",
   });
+  const [employeesList, setemployeesList] = useState([]);
 
   // insert expense
   const [insertExpenseTransaction] = useMutation(INSERT_EXPENSE_TRANSACTION);
+
+  // fetch expenses with filters
+  const { data: employeeData } = useQuery(FETCH_EMPLOYEES);
+  const employees = employeeData?.expense_employees || [];
+  useEffect(() => {
+    if (!employeeData) return;
+    setemployeesList(employees);
+  }, [employeeData]);
 
   // Build `where1` for aggregates: include date range and category when set
   const whereTransaction = useMemo(() => {
@@ -143,7 +155,7 @@ const ExpensePage = () => {
     if (!newExpense.category || !newExpense.amount) return;
 
     const insertObject = {
-      expense_emp_id: null,
+      expense_emp_id: newExpense.person || null,
       category: newExpense.category,
       advance: 0,
       amount: Number(newExpense.amount),
@@ -393,18 +405,21 @@ const ExpensePage = () => {
                 />
               )}
 
-              {["Commission", "Salary", "Advance"].includes(
-                newExpense.category
-              ) && (
-                <input
-                  type="text"
-                  placeholder="Person Name"
-                  className="w-full px-3 py-2 text-gray-700 rounded-lg border border-gray-300 shadow-sm"
-                  value={newExpense.person}
+              {["Commission", "Salary"].includes(newExpense.category) && (
+                <select
+                  className="w-full px-3 py-2 text-gray-700 rounded-lg border border-gray-300 shadow-sm focus:ring-2 focus:ring-emerald-200"
+                  value={newExpense.person || ""}
                   onChange={(e) =>
                     setNewExpense({ ...newExpense, person: e.target.value })
                   }
-                />
+                >
+                  <option value="">-- Select Employee --</option>
+                  {employeesList?.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
               )}
 
               {newExpense.category === "Bhada" && (

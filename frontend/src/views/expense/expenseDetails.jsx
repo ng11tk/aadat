@@ -190,23 +190,31 @@ const ExpenseDetails = () => {
                     👤 <span className="font-medium">{exp.person}</span>
                   </p>
                 )}
-                {exp.vehicle && (
+                {exp?.bhada_details?.vehicle && (
                   <p>
                     🚚 Vehicle:{" "}
-                    <span className="font-medium">{exp.vehicle}</span>
+                    <span className="font-medium">
+                      {exp.bhada_details.vehicle}
+                    </span>
                   </p>
                 )}
-                {exp.modi && (
+                {exp?.bhada_details?.modi && (
                   <p>
-                    🏬 Supplier: <span className="font-medium">{exp.modi}</span>
+                    🏬 Supplier:{" "}
+                    <span className="font-medium">
+                      {exp.bhada_details.modi}
+                    </span>
                   </p>
                 )}
-                {exp.item && (
+                {exp?.bhada_details?.item && (
                   <p>
-                    📦 Item: <span className="font-medium">{exp.item}</span>
+                    📦 Item:{" "}
+                    <span className="font-medium">
+                      {exp.bhada_details.item}
+                    </span>
                   </p>
                 )}
-                {exp.description && (
+                {exp?.description && (
                   <p className="italic text-gray-500">"{exp.description}"</p>
                 )}
               </div>
