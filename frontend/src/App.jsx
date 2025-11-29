@@ -13,7 +13,6 @@ import Navbar from "./components/navbar";
 import OpeningStock from "./views/opening/opening";
 import SellPage from "./views/selling/selling";
 import SellerDashboard from "./views/dashboard";
-import BorrowerSettlement from "./views/tagade";
 import SupplierDashboard from "./views/supplier/supplierList";
 import SupplierDetails from "./views/supplier/supplierDetails";
 import BuyerDashboard from "./views/buyer/buyerList";
@@ -70,14 +69,6 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <SellPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/tagade"
-                element={
-                  <ProtectedRoute>
-                    <BorrowerSettlement />
                   </ProtectedRoute>
                 }
               />
