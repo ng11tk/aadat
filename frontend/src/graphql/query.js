@@ -296,3 +296,33 @@ export const FETCH_EMPLOYEES = gql`
     }
   }
 `;
+
+export const FETCH_SALES = gql`
+  query FETCH_SALES($where: sales_sales_order_bool_exp = {}) {
+    sales_sales_order(
+      order_by: { created_at: desc_nulls_first }
+      where: $where
+    ) {
+      id
+      order_date
+      buyer_id
+      buyer {
+        name
+      }
+      total_amount
+      sales_order_items {
+        id
+        item_date
+        item_name
+        item_weight
+        quantity
+        supplier {
+          name
+          type
+        }
+        unit
+        unit_price
+      }
+    }
+  }
+`;

@@ -101,7 +101,7 @@ const AddItemModal = ({
                   : "bg-gray-100 text-gray-700 hover:bg-gray-200"
               }`}
             >
-              Supplier (Aadat)
+              Aadat
             </button>
             <button
               type="button"
@@ -112,7 +112,7 @@ const AddItemModal = ({
                   : "bg-gray-100 text-gray-700 hover:bg-gray-200"
               }`}
             >
-              Modi (Vapari)
+              Vapari
             </button>
           </div>
 
