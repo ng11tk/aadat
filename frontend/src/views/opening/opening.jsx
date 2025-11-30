@@ -8,7 +8,10 @@ import {
   UPDATE_UNLOADING_STATUS,
 } from "../../graphql/mutation";
 import { promiseResolver } from "../../utils/promisResolver";
-import { GET_ALL_OPENING_UNLOADING } from "../../graphql/query";
+import {
+  FETCH_MODI_ITEMS,
+  GET_ALL_OPENING_UNLOADING,
+} from "../../graphql/query";
 import { useMutation, useQuery } from "@apollo/client/react"; // <- fixed import
 
 const initialItem = {
@@ -183,6 +186,15 @@ const OpeningStock = () => {
             pk_columns: { id },
             isDayClose: !itemToClose.isDayClose,
           },
+          refetchQueries: [
+            {
+              query: FETCH_MODI_ITEMS,
+              variables: {
+                unloading_date: new Date().toISOString().split("T")[0],
+                isDayClose: false,
+              },
+            },
+          ],
         })
       );
 
