@@ -19,7 +19,7 @@ const Navbar = () => {
   const navLinks = [
     { path: "/", label: "Dashboard" },
     { path: "/opening", label: "Opening" },
-    { path: "/selling", label: "Selling" },
+    { path: "/sales", label: "Sales" },
     { path: "/buyer", label: "Buyer" },
     { path: "/supplier", label: "Supplier" },
     { path: "/expense", label: "Expense" },

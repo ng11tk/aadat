@@ -65,7 +65,7 @@ function App() {
                 }
               />
               <Route
-                path="/selling"
+                path="/sales"
                 element={
                   <ProtectedRoute>
                     <SellPage />

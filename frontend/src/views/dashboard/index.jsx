@@ -80,7 +80,7 @@ const SalesDashboard = () => {
 
         <div className="flex gap-3">
           <button
-            onClick={() => navigate("/selling")}
+            onClick={() => navigate("/sales")}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white font-semibold shadow hover:bg-indigo-700 transition"
           >
             <Plus className="w-5 h-5" /> Sale
