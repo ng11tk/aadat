@@ -116,7 +116,7 @@ const OpeningStock = () => {
       type: item.type,
       name: item.name,
       amount: totalKharcha + itemsTotalAmount,
-      advance_amount: item.amount_paid,
+      advance_amount: item.advance,
       bhada_details: {
         bhada: Number(item.bhada) || 0,
         vehicle_number: item.vehicle_number,
@@ -138,12 +138,13 @@ const OpeningStock = () => {
         data: {
           supplier_name: item.name,
           amount: totalKharcha + itemsTotalAmount,
-          remaining_amount: totalKharcha + itemsTotalAmount - item.amount_paid,
+          remaining_amount: totalKharcha + itemsTotalAmount - item.advance,
           payment_status:
-            totalKharcha + itemsTotalAmount - item.amount_paid <= 0
+            totalKharcha + itemsTotalAmount - item.advance <= 0
               ? "paid"
               : "partial",
           unloading_date: new Date().toISOString().split("T")[0],
+          advance_amount: item.advance,
         },
       },
     };

@@ -52,7 +52,8 @@ const SupplierDetails = () => {
         totalDue:
           s.supplier_unloadings_aggregate?.aggregate?.sum?.remaining_amount ||
           0,
-        totalAdvance: 2000,
+        totalAdvance:
+          s.supplier_unloadings_aggregate?.aggregate?.sum?.advance_amount || 0,
         transactions: s?.supplier_unloadings_aggregate?.nodes.map((t: any) => ({
           id: t.id,
           date: t.unloading_date,
@@ -61,7 +62,7 @@ const SupplierDetails = () => {
           payment_status: t.payment_status,
           items: t.unloading.unloading_items.map((item: any) => ({
             id: item.id,
-            name: item.item_name,
+            name: item.name,
             qty: item.quantity,
             rate: item.rate,
             unit: item.unit,
@@ -253,6 +254,7 @@ const SupplierDetails = () => {
 
       {/* Transactions Grid */}
       <div className="grid md:grid-cols-3 gap-4">
+        {!filteredTransactions && <p>No, Items found.</p>}
         {filteredTransactions?.map((t) => {
           const info = selectedTransactions[t.id] || {
             mode: "full",

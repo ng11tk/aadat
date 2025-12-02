@@ -89,7 +89,10 @@ export const FETCH_SUPPLIERS_AGGREGATE = gql`
   query FETCH_SUPPLIERS_AGGREGATE(
     $whereSupplier: supplier_supplier_bool_exp = {}
   ) {
-    supplier_supplier(where: $whereSupplier) {
+    supplier_supplier(
+      where: $whereSupplier
+      order_by: { updated_at: desc_nulls_first }
+    ) {
       id
       name
       phone
@@ -114,6 +117,7 @@ export const FETCH_SUPPLIER_DETAILS = gql`
           sum {
             amount
             remaining_amount
+            advance_amount
           }
         }
         nodes {

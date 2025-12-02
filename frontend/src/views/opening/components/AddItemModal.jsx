@@ -149,29 +149,16 @@ const AddItemModal = ({
                 </select>
               </div>
 
-              {/* Amount Paid / Advance */}
+              {/* Advance */}
               <div>
                 <label className="block text-sm font-medium text-gray-600 mb-1">
-                  {newItem.type === "supplier" ? "Amount Paid" : "Advance"}
+                  Advance
                 </label>
                 <input
                   type="number"
-                  placeholder={
-                    newItem.type === "supplier"
-                      ? "Enter amount paid"
-                      : "Enter advance"
-                  }
-                  value={
-                    newItem.type === "supplier"
-                      ? newItem.amount_paid
-                      : newItem.advance
-                  }
-                  onChange={(e) =>
-                    handleChange(
-                      newItem.type === "supplier" ? "amount_paid" : "advance",
-                      e.target.value
-                    )
-                  }
+                  placeholder={"Enter advance"}
+                  value={newItem.advance}
+                  onChange={(e) => handleChange("advance", e.target.value)}
                   className="w-full border border-gray-300 rounded-lg p-3 text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 />
               </div>
