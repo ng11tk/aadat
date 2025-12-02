@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Plus } from "lucide-react";
 import { useMutation, useQuery } from "@apollo/client/react";
-import { INSERT_EXPENSE_TRANSACTION } from "../../graphql/mutation";
+import { INSERT_EXPENSE_BILLS } from "../../graphql/mutation";
 import { promiseResolver } from "../../utils/promisResolver";
 import {
   FETCH_EMPLOYEES,
@@ -85,7 +85,7 @@ const ExpensePage = () => {
   const [employeesList, setemployeesList] = useState([]);
 
   // insert expense
-  const [insertExpenseTransaction] = useMutation(INSERT_EXPENSE_TRANSACTION);
+  const [insertExpensebill] = useMutation(INSERT_EXPENSE_BILLS);
 
   // fetch expenses with filters
   const { data: employeeData } = useQuery(FETCH_EMPLOYEES);
@@ -96,7 +96,7 @@ const ExpensePage = () => {
   }, [employeeData]);
 
   // Build `where1` for aggregates: include date range and category when set
-  const whereTransaction = useMemo(() => {
+  const whereBill = useMemo(() => {
     const w = {};
     if (!fromDate && toDate) {
       w.date = { _eq: toDate };
@@ -113,7 +113,7 @@ const ExpensePage = () => {
   const { data: expenseData, refetch: expenseRefetch } = useQuery(
     GET_EXPENSE_CATEGORIES_AGGREGATE,
     {
-      variables: { whereTransaction },
+      variables: { whereBill },
       fetchPolicy: "network-only",
     }
   );
@@ -126,8 +126,8 @@ const ExpensePage = () => {
     const newExpenses = expenseCategories.map((cat) => ({
       id: cat.id,
       category: cat.category,
-      advance: cat.transactions_aggregate?.aggregate?.sum?.advance || 0,
-      amount: cat.transactions_aggregate?.aggregate?.sum?.amount || 0,
+      advance: cat.expense_bills_aggregate?.aggregate?.sum?.advance || 0,
+      amount: cat.expense_bills_aggregate?.aggregate?.sum?.amount || 0,
     }));
     setExpenses(newExpenses);
   }, [expenseData]);
@@ -159,6 +159,8 @@ const ExpensePage = () => {
       category: newExpense.category,
       advance: 0,
       amount: Number(newExpense.amount),
+      remaining_amount: 0,
+      payment_status: "partial",
       description: newExpense.description || null,
       bhada_details:
         newExpense.category === "Bhada"
@@ -171,16 +173,16 @@ const ExpensePage = () => {
       date: formatDate(today),
     };
 
-    // Call the mutation to insert expense transaction
+    // Call the mutation to insert expense bill
     const [data, error] = await promiseResolver(
-      insertExpenseTransaction({
+      insertExpensebill({
         variables: {
           objects: insertObject,
         },
       })
     );
     if (error) {
-      console.error("Error inserting expense transaction:", error);
+      console.error("Error inserting expense bill:", error);
     }
     expenseRefetch();
     setNewExpense({

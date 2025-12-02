@@ -239,12 +239,12 @@ export const FETCH_BUYER_DETAILS = gql`
 export const GET_EXPENSE_CATEGORIES_AGGREGATE = gql`
   query GET_EXPENSE_CATEGORIES_AGGREGATE(
     $where: expense_categories_bool_exp = {}
-    $whereTransaction: expense_transactions_bool_exp = {}
+    $whereBill: expense_expense_bills_bool_exp = {}
   ) {
     expense_categories(where: $where) {
       id
       category
-      transactions_aggregate(where: $whereTransaction) {
+      expense_bills_aggregate(where: $whereBill) {
         aggregate {
           sum {
             advance
@@ -255,12 +255,12 @@ export const GET_EXPENSE_CATEGORIES_AGGREGATE = gql`
     }
   }
 `;
-export const FETCH_EXPENSE_TRANSACTIONS = gql`
+export const FETCH_EXPENSE_BILLS = gql`
   query MyQuery(
-    $where: expense_transactions_bool_exp = {}
-    $order_by: [expense_transactions_order_by!] = { date: desc_nulls_first }
+    $where: expense_expense_bills_bool_exp = {}
+    $order_by: [expense_expense_bills_order_by!] = { date: desc_nulls_first }
   ) {
-    expense_transactions_aggregate(order_by: $order_by, where: $where) {
+    expense_expense_bills_aggregate(order_by: $order_by, where: $where) {
       aggregate {
         sum {
           advance
@@ -278,6 +278,8 @@ export const FETCH_EXPENSE_TRANSACTIONS = gql`
         employee {
           name
         }
+        remaining_amount
+        payment_status
       }
     }
   }

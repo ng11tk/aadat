@@ -82,11 +82,21 @@ export const INSERT_BUYER_TRANSACTION = gql`
     }
   }
 `;
-export const INSERT_EXPENSE_TRANSACTION = gql`
-  mutation INSERT_EXPENSE_TRANSACTION(
-    $objects: [expense_transactions_insert_input!] = {}
+export const INSERT_EXPENSE_BILLS = gql`
+  mutation INSERT_EXPENSE_BILLS(
+    $objects: [expense_expense_bills_insert_input!] = {}
   ) {
-    insert_expense_transactions(objects: $objects) {
+    insert_expense_expense_bills(objects: $objects) {
+      affected_rows
+    }
+  }
+`;
+
+export const INSERT_EXPENSE_TRANSACTIONS = gql`
+  mutation INSERT_EXPENSE_TRANSACTIONS(
+    $objects: [expense_expense_transactions_insert_input!] = {}
+  ) {
+    insert_expense_expense_transactions(objects: $objects) {
       affected_rows
     }
   }
