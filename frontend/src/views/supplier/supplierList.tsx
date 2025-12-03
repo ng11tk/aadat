@@ -19,6 +19,7 @@ const SupplierDashboard = () => {
     contact: "",
     type: "supplier",
   });
+  const [errors, setErrors] = useState({ contact: "" });
 
   const debouncedSupplierFilter = useDebounce(supplierFilter, 400);
 
@@ -59,14 +60,27 @@ const SupplierDashboard = () => {
     useMutation(INSERT_SUPPLIER);
 
   const handleSaveSupplier = async () => {
-    if (!newSupplier.supplier || !newSupplier.contact) return;
+    // final validation
+    const digits = (newSupplier.contact || "").replace(/\D/g, "");
+    if (!newSupplier.supplier) {
+      return; // name required (UI already prevents empty save)
+    }
+    if (!digits) {
+      setErrors((s) => ({ ...s, contact: "Contact is required" }));
+      return;
+    }
+    if (digits.length < 10) {
+      setErrors((s) => ({ ...s, contact: "Enter at least 10 digits" }));
+      return;
+    }
 
     try {
       await insertSupplier({
         variables: {
           object: {
             name: newSupplier.supplier,
-            phone: Number(newSupplier.contact),
+            // send digits-only phone string so backend can accept either text or numeric
+            phone: digits,
             type: newSupplier.type,
           },
         },
@@ -257,13 +271,33 @@ const SupplierDashboard = () => {
               />
               <input
                 type="text"
+                inputMode="tel"
                 placeholder="Contact"
                 className="input input-bordered w-full"
                 value={newSupplier.contact}
-                onChange={(e) =>
-                  setNewSupplier({ ...newSupplier, contact: e.target.value })
-                }
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setNewSupplier({ ...newSupplier, contact: v });
+                  // validate immediately
+                  const digits = (v || "").replace(/\D/g, "");
+                  if (!digits)
+                    setErrors((s) => ({
+                      ...s,
+                      contact: "Contact is required",
+                    }));
+                  else if (digits.length < 10)
+                    setErrors((s) => ({
+                      ...s,
+                      contact: "Enter at least 10 digits",
+                    }));
+                  else if (digits.length > 10)
+                    setErrors((s) => ({ ...s, contact: "Too many digits" }));
+                  else setErrors((s) => ({ ...s, contact: "" }));
+                }}
               />
+              {errors.contact && (
+                <p className="text-xs text-red-600 mt-1">{errors.contact}</p>
+              )}
               <select
                 value={newSupplier.type}
                 onChange={(e) =>
@@ -287,7 +321,12 @@ const SupplierDashboard = () => {
                   insertSupplierLoading ? "opacity-50" : ""
                 }`}
                 onClick={handleSaveSupplier}
-                disabled={insertSupplierLoading}
+                disabled={
+                  insertSupplierLoading ||
+                  !!errors.contact ||
+                  !newSupplier.supplier ||
+                  !newSupplier.contact
+                }
               >
                 {insertSupplierLoading ? "Saving..." : "Save"}
               </button>

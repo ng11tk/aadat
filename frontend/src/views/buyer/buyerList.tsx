@@ -17,6 +17,7 @@ const BuyerDashboard = () => {
   const [buyers, setBuyers] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newBuyer, setNewBuyer] = useState({ name: "", contact: "" });
+  const [errors, setErrors] = useState({ contact: "" });
 
   const debouncedBuyerFilter = useDebounce(buyerFilter, 400);
 
@@ -59,13 +60,18 @@ const BuyerDashboard = () => {
   // handlers
 
   const handleSaveBuyer = async () => {
+    // basic validation
     if (!newBuyer.name || !newBuyer.contact) return;
+    if (errors.contact) return;
+
+    // ensure digits-only phone
+    const digits = (newBuyer.contact || "").toString().replace(/\D/g, "");
 
     // call mutation to insert buyer
     const [data, error] = await promiseResolver(
       insertBuyer({
         variables: {
-          object: { name: newBuyer.name, phone: Number(newBuyer.contact) },
+          object: { name: newBuyer.name, phone: Number(digits) },
         },
       })
     );
@@ -77,6 +83,7 @@ const BuyerDashboard = () => {
 
     buyersRefetch();
     setNewBuyer({ name: "", contact: "" });
+    setErrors({ contact: "" });
     setIsModalOpen(false);
   };
 
@@ -229,11 +236,32 @@ const BuyerDashboard = () => {
                 type="text"
                 placeholder="Contact"
                 className="input input-bordered w-full"
+                inputMode="tel"
                 value={newBuyer.contact}
-                onChange={(e) =>
-                  setNewBuyer({ ...newBuyer, contact: e.target.value })
-                }
+                onChange={(e) => {
+                  const raw = e.target.value || "";
+                  const digits = raw.replace(/\D/g, "");
+                  setNewBuyer({ ...newBuyer, contact: digits });
+
+                  // validate length (10-15 digits)
+                  if (!digits)
+                    setErrors({ ...errors, contact: "Contact is required" });
+                  else if (digits.length < 10)
+                    setErrors({
+                      ...errors,
+                      contact: "Contact must be at least 10 digits",
+                    });
+                  else if (digits.length > 10)
+                    setErrors({
+                      ...errors,
+                      contact: "Contact must be at most 15 digits",
+                    });
+                  else setErrors({ ...errors, contact: "" });
+                }}
               />
+              {errors.contact && (
+                <p className="text-sm text-red-500 mt-1">{errors.contact}</p>
+              )}
             </div>
             <div className="modal-action">
               <button
@@ -247,7 +275,12 @@ const BuyerDashboard = () => {
                   insetBuyerLoading ? "opacity-50 cursor-not-allowed" : ""
                 }`}
                 onClick={handleSaveBuyer}
-                disabled={insetBuyerLoading}
+                disabled={
+                  insetBuyerLoading ||
+                  !!errors.contact ||
+                  !newBuyer.name ||
+                  !newBuyer.contact
+                }
                 aria-busy={insetBuyerLoading}
               >
                 {insetBuyerLoading ? "Saving..." : "Save"}
