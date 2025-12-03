@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "react-router-dom";
 import { FETCH_SUPPLIER_DETAILS } from "../../graphql/query";
@@ -11,7 +11,7 @@ const formatDate = (date) => date.toISOString().split("T")[0];
 const SupplierDetails = () => {
   const today = new Date();
   const location = useLocation();
-  const suppliers = location.state?.supplier || [];
+  const suppliers = location.state?.supplier || {};
   const [supplier, setSupplier] = useState<any>({});
   const [selectedTransactions, setSelectedTransactions] = useState({});
   const [modalTransaction, setModalTransaction] = useState(null);
@@ -22,9 +22,26 @@ const SupplierDetails = () => {
   );
   const [toDate, setToDate] = useState(formatDate(today));
 
+  // where filter for supplier details
+  const whereSupplierUnloadingsDetails = useMemo(() => {
+    const w = {};
+
+    if (!fromDate && toDate) {
+      w.unloading_date = { _eq: toDate };
+    }
+    // only add date filter when both fromDate and toDate are present
+    if (fromDate && toDate) {
+      w.unloading_date = { _gte: fromDate, _lte: toDate };
+    }
+
+    return w;
+  }, [fromDate, toDate]);
+
+  //* mutations
   const [insertSupplierTransactions] = useMutation(INSERT_SUPPLIER_TRANSACTION);
 
-  // fetch supplier details
+  //* fetch
+  // supplier details
   const {
     error,
     data: { supplier_supplier: supplier_supplier = [] } = {},
@@ -32,9 +49,8 @@ const SupplierDetails = () => {
     refetch,
   } = useQuery(FETCH_SUPPLIER_DETAILS, {
     variables: {
-      where: {
-        id: { _eq: suppliers.id },
-      },
+      where: { id: { _eq: suppliers.id } },
+      whereSupplierUnloading: whereSupplierUnloadingsDetails,
     },
     fetchPolicy: "network-only",
   });

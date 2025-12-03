@@ -106,13 +106,16 @@ export const FETCH_SUPPLIERS_AGGREGATE = gql`
 `;
 
 export const FETCH_SUPPLIER_DETAILS = gql`
-  query FETCH_SUPPLIER_DETAILS($where: supplier_supplier_bool_exp = {}) {
+  query FETCH_SUPPLIER_DETAILS(
+    $where: supplier_supplier_bool_exp = {}
+    $whereSupplierUnloading: supplier_supplier_unloading_bool_exp = {}
+  ) {
     supplier_supplier(where: $where) {
       id
       name
       phone
       address
-      supplier_unloadings_aggregate(where: {}) {
+      supplier_unloadings_aggregate(where: $whereSupplierUnloading) {
         aggregate {
           sum {
             amount
@@ -183,7 +186,10 @@ export const FIND_SALES_ORDERS = gql`
 
 export const FETCH_BUYERS_LIST = gql`
   query FETCH_BUYERS_LIST($whereBuyer: buyer_buyers_bool_exp = {}) {
-    buyer_buyers(where: $whereBuyer) {
+    buyer_buyers(
+      where: $whereBuyer
+      order_by: { updated_at: desc_nulls_first }
+    ) {
       id
       name
       phone
@@ -206,9 +212,10 @@ export const FETCH_BUYER_DETAILS = gql`
       phone
       address
       payment_status
-      total_amount
-      remaining_amount
-      buyer_purchases_aggregate(where: $where) {
+      buyer_purchases_aggregate(
+        where: $where
+        order_by: { purchase_date: desc_nulls_first }
+      ) {
         aggregate {
           sum {
             remaining_amount

@@ -1,4 +1,4 @@
-import React, { use, useEffect, useState } from "react";
+import React, { use, useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "react-router-dom";
 import { useMutation, useQuery } from "@apollo/client/react";
@@ -22,9 +22,26 @@ const BuyerDetails = () => {
   const [toDate, setToDate] = useState(formatDate(today));
   const [statusFilter, setStatusFilter] = useState("all");
 
+  // where filter for supplier details
+  const whereBuyerTransactionsDetails = useMemo(() => {
+    const w = {};
+
+    if (!fromDate && toDate) {
+      w.purchase_date = { _eq: toDate };
+    }
+    // only add date filter when both fromDate and toDate are present
+    if (fromDate && toDate) {
+      w.purchase_date = { _gte: fromDate, _lte: toDate };
+    }
+
+    return w;
+  }, [fromDate, toDate]);
+
+  //* mutations
   // insert buyer transaction mutation
   const [insertBuyerTransaction] = useMutation(INSERT_BUYER_TRANSACTION);
 
+  //* queries
   // fetch buyer details
   const {
     error: buyerError,
@@ -32,7 +49,7 @@ const BuyerDetails = () => {
     loading: buyerLoading,
     refetch: refetchBuyer,
   } = useQuery(FETCH_BUYER_DETAILS, {
-    variables: { id: buyerFromState.id },
+    variables: { id: buyerFromState.id, where: whereBuyerTransactionsDetails },
   });
 
   const buyerDetails = buyerData?.buyer_buyers_by_pk || {};
@@ -56,6 +73,13 @@ const BuyerDetails = () => {
           })),
         })
       );
+      const { remaining_amount, total_amount } =
+        buyerDetails?.buyer_purchases_aggregate?.aggregate.sum;
+      setBuyer({
+        ...buyer,
+        total: total_amount,
+        due: remaining_amount,
+      });
       setTransactions(t);
     } catch (err) {
       setTransactions([]);
@@ -152,15 +176,11 @@ const BuyerDetails = () => {
         <div className="bg-white shadow-md rounded-xl p-4 border border-gray-200 flex justify-around">
           <div className="text-center">
             <p className="text-gray-500 text-sm">Total Sale</p>
-            <p className="font-semibold text-indigo-600">
-              ₹{transactions.reduce((s, t) => s + (t.total || 0), 0)}
-            </p>
+            <p className="font-semibold text-indigo-600">₹{buyer.total}</p>
           </div>
           <div className="text-center">
             <p className="text-gray-500 text-sm">Due</p>
-            <p className="font-semibold text-red-600">
-              ₹{transactions.reduce((s, t) => s + (t.due || 0), 0)}
-            </p>
+            <p className="font-semibold text-red-600">₹{buyer.due}</p>
           </div>
           <div className="text-center">
             <p className="text-gray-500 text-sm">Advance</p>
