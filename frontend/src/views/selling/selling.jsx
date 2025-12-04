@@ -151,7 +151,7 @@ const SalesDashboard = () => {
         },
         fetchPolicy: "network-only",
       });
-      const existingOrder = existingOrdersData?.sales_sales_order?.[0] || null;
+      const existingOrder = existingOrdersData?.sales_sales_order?.[0] || false;
       console.log("🚀 ~ handleSubmit ~ existingOrder:", existingOrder);
 
       if (existingOrder) {

@@ -249,6 +249,8 @@ const BuyerDetails = () => {
 
       {/* Transactions Grid */}
       <div className="grid md:grid-cols-3 gap-4">
+        {filtered.length === 0 && <p>No, Items found.</p>}
+
         {filtered.map((t) => {
           const info = selectedTransactions[t.id] || {
             mode: "full",

@@ -71,7 +71,7 @@ const BuyerDashboard = () => {
     const [data, error] = await promiseResolver(
       insertBuyer({
         variables: {
-          object: { name: newBuyer.name, phone: Number(digits) },
+          object: { name: newBuyer.name, phone: digits },
         },
       })
     );
