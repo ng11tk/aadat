@@ -163,6 +163,7 @@ export const FETCH_MODI_ITEMS = gql`
     ) {
       id
       name
+      type
       unloading_items {
         id
         name

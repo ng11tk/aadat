@@ -2,13 +2,13 @@ import React, { useState } from "react";
 import { Plus } from "lucide-react";
 
 /** Redesigned Item Card (Modern, App-Style UI) */
-const ItemCard = ({ modi, itemName, onAdd }) => {
+const ItemCard = ({ item, onAdd }) => {
   const [qty, setQty] = useState("");
   const [rate, setRate] = useState("");
 
   const handleAdd = () => {
     if (!qty || !rate) return;
-    onAdd({ item_name: itemName, qty: Number(qty), rate: Number(rate) });
+    onAdd({ item_name: item.name, qty: Number(qty), rate: Number(rate) });
     setQty("");
     setRate("");
   };
@@ -17,13 +17,9 @@ const ItemCard = ({ modi, itemName, onAdd }) => {
     <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 w-full transition-all hover:shadow-md">
       {/* Header */}
       <div className="flex justify-between items-center">
-        <div>
-          <div className="text-base font-semibold text-gray-800">
-            {itemName}
-          </div>
-          <div className="text-xs text-gray-400 mt-0.5">
-            {modi.modi_name} • {modi.weight}kg
-          </div>
+        <div className="text-base font-semibold text-gray-800">{item.name}</div>
+        <div className="text-xs text-gray-400 mt-0.5">
+          {item.remaining_quantity} Qty.
         </div>
       </div>
 

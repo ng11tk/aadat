@@ -48,34 +48,37 @@ const SalesDashboard = () => {
 
     const mergedByName = Object.values(
       (modiItemsData || []).reduce((acc, m) => {
-        const key = m.name;
+        // supplier groups together, others grouped by name
+        const key = m.type === "supplier" ? "supplier" : m.name;
+
+        // prepare unloading items properly
+        const items = Array.isArray(m.unloading_items)
+          ? m.unloading_items.map((item) => ({
+              ...item,
+              supplier_name: m.name,
+            }))
+          : [];
+
         if (!acc[key]) {
           acc[key] = {
             id: m.id,
             name: m.name,
-            unloading_items: Array.isArray(m.unloading_items)
-              ? [...m.unloading_items]
-              : [],
+            modi_name: m.type === "supplier" ? "aadat" : m.name,
+            modi_type: m.type,
+            unloading_items: items,
           };
         } else {
-          acc[key].unloading_items = acc[key].unloading_items.concat(
-            m.unloading_items || []
-          );
+          acc[key].unloading_items = acc[key].unloading_items.concat(items);
         }
+
         return acc;
       }, {})
     );
 
     const formatted = mergedByName.map((m) => ({
       id: m.id,
-      modi_name: m.name,
-      items: (m.unloading_items || [])
-        .filter((it) => it.isSellable)
-        .map((it) => it.name),
-      weight: (m.unloading_items || []).reduce(
-        (sum, it) => sum + (it.remaining_quantity || 0),
-        0
-      ),
+      modi_name: m.modi_name,
+      items: (m.unloading_items || []).filter((it) => it.isSellable),
     }));
 
     setModiList(formatted);
@@ -98,7 +101,7 @@ const SalesDashboard = () => {
     setAddedItems((prev) => {
       const idx = prev.findIndex(
         (p) =>
-          p.modi_id === payload.modi_id &&
+          p.unloading_id === payload.unloading_id &&
           p.item_name === payload.item_name &&
           Number(p.rate) === Number(payload.rate)
       );
@@ -125,7 +128,7 @@ const SalesDashboard = () => {
       buyer_id: selectedBuyer,
       sales_order_items: {
         data: addedItems.map((it) => ({
-          supplier_name: it.modi_name,
+          supplier_name: it.supplier_name,
           item_name: it.item_name,
           quantity: it.qty,
           unit_price: it.rate,
@@ -283,48 +286,52 @@ const SalesDashboard = () => {
             <h2 className="text-lg font-semibold">Modi List</h2>
           </div>
           <ul className="space-y-2">
-            {modiList.map((m) => (
-              <li
-                key={m.id}
-                className={`p-3 rounded-lg cursor-pointer border flex justify-between items-center ${
-                  selectedModi?.id === m.id
-                    ? "bg-indigo-100 border-indigo-400"
-                    : "bg-white border-gray-200"
-                }`}
-                onClick={() => setSelectedModi(m)}
-              >
-                <div>
+            {modiLoading && <p>Loading ...</p>}
+            {!modiLoading && !modiList.length ? (
+              <p>Modi list is empty!</p>
+            ) : (
+              modiList.map((m) => (
+                <li
+                  key={m.id}
+                  className={`p-3 rounded-lg cursor-pointer border flex justify-between items-center ${
+                    selectedModi?.id === m.id
+                      ? "bg-indigo-100 border-indigo-400"
+                      : "bg-white border-gray-200"
+                  }`}
+                  onClick={() => setSelectedModi(m)}
+                >
                   <div className="font-medium">{m.modi_name}</div>
-                  <div className="text-xs text-gray-500">
+                  <span className="text-xs text-gray-600">
                     {m.items.length} items
-                  </div>
-                </div>
-                <span className="text-sm text-gray-600">{m.weight}kg</span>
-              </li>
-            ))}
+                  </span>
+                </li>
+              ))
+            )}
           </ul>
         </div>
 
         <div className="col-span-2">
           {selectedModi && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-              {selectedModi.items.map((item) => (
-                <ItemCard
-                  key={item}
-                  modi={selectedModi}
-                  itemName={item}
-                  onAdd={(payload) =>
-                    handleAddItem({
-                      modi_id: selectedModi.id,
-                      modi_name: selectedModi.modi_name,
-                      item_name: payload.item_name,
-                      qty: Number(payload.qty),
-                      rate: Number(payload.rate),
-                      weight: selectedModi.weight,
-                    })
-                  }
-                />
-              ))}
+              {selectedModi.items.map((item) => {
+                return (
+                  <ItemCard
+                    key={item.id}
+                    item={item}
+                    onAdd={(payload) =>
+                      handleAddItem({
+                        unloading_id: selectedModi.id,
+                        modi_name: selectedModi.modi_name,
+                        supplier_name: item.supplier_name,
+                        item_name: payload.item_name,
+                        qty: Number(payload.qty),
+                        rate: Number(payload.rate),
+                        weight: selectedModi.weight,
+                      })
+                    }
+                  />
+                );
+              })}
             </div>
           )}
 
