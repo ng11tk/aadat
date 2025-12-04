@@ -32,6 +32,7 @@ const ItemCard = ({ item, onAdd }) => {
           className="w-20 px-3 py-2 rounded-xl border text-sm focus:ring-2 focus:ring-blue-300 focus:outline-none"
           type="number"
           min="0"
+          max={item.remaining_quantity}
         />
 
         <input

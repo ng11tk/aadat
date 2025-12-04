@@ -34,7 +34,7 @@ const SalesDashboard = () => {
     setBuyers(formatted);
   }, [fetchBuyers]);
 
-  // lazily fetch modi items
+  // fetch modi items
   const { data: modiData, loading: modiLoading } = useQuery(FETCH_MODI_ITEMS, {
     variables: {
       unloading_date: new Date().toISOString().split("T")[0],
@@ -102,6 +102,7 @@ const SalesDashboard = () => {
       const idx = prev.findIndex(
         (p) =>
           p.unloading_id === payload.unloading_id &&
+          p.item_id === payload.item_id &&
           p.item_name === payload.item_name &&
           Number(p.rate) === Number(payload.rate)
       );
@@ -128,11 +129,12 @@ const SalesDashboard = () => {
       buyer_id: selectedBuyer,
       sales_order_items: {
         data: addedItems.map((it) => ({
+          unloading_item_id: it.item_id,
           supplier_name: it.supplier_name,
           item_name: it.item_name,
           quantity: it.qty,
           unit_price: it.rate,
-          item_weight: it.weight,
+          item_weight: it.weight || 10,
           item_date: new Date().toISOString().split("T")[0],
         })),
       },
@@ -155,7 +157,6 @@ const SalesDashboard = () => {
         fetchPolicy: "network-only",
       });
       const existingOrder = existingOrdersData?.sales_sales_order?.[0] || false;
-      console.log("🚀 ~ handleSubmit ~ existingOrder:", existingOrder);
 
       if (existingOrder) {
         // Save previous total to allow rollback if item insertion fails
@@ -167,10 +168,10 @@ const SalesDashboard = () => {
           variables: {
             object: {
               id: existingOrder.id,
-              buyer_id: selectedBuyer,
+              buyer_id: payload.buyer_id,
               total_amount: updatedTotal,
-              order_date: new Date().toISOString().split("T")[0],
-              items_missing_rate_count: 0,
+              order_date: payload.order_date,
+              items_missing_rate_count: payload.items_missing_rate_count,
             },
           },
         });
@@ -179,14 +180,9 @@ const SalesDashboard = () => {
         try {
           const { data: insertItemsData } = await insertSalesOrderItems({
             variables: {
-              objects: addedItems.map((it) => ({
+              objects: payload.sales_order_items.data.map((it) => ({
+                ...it,
                 order_id: existingOrder.id,
-                supplier_name: it.modi_name,
-                item_name: it.item_name,
-                quantity: it.qty,
-                unit_price: it.rate,
-                item_weight: it.weight,
-                item_date: new Date().toISOString().split("T")[0],
               })),
             },
           });
@@ -321,6 +317,7 @@ const SalesDashboard = () => {
                     onAdd={(payload) =>
                       handleAddItem({
                         unloading_id: selectedModi.id,
+                        item_id: item.id,
                         modi_name: selectedModi.modi_name,
                         supplier_name: item.supplier_name,
                         item_name: payload.item_name,
