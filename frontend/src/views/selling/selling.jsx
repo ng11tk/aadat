@@ -35,7 +35,11 @@ const SalesDashboard = () => {
   }, [fetchBuyers]);
 
   // fetch modi items
-  const { data: modiData, loading: modiLoading } = useQuery(FETCH_MODI_ITEMS, {
+  const {
+    data: modiData,
+    loading: modiLoading,
+    refetch: modiRefetch,
+  } = useQuery(FETCH_MODI_ITEMS, {
     variables: {
       unloading_date: new Date().toISOString().split("T")[0],
       isDayClose: false,
@@ -224,6 +228,7 @@ const SalesDashboard = () => {
     }
 
     alert("Submitted. Check console.");
+    modiRefetch();
     setAddedItems([]);
     setSelectedBuyer(null);
     setSelectedModi(null);

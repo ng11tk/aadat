@@ -80,7 +80,7 @@ const ItemCard = ({ item, isClosed, onDelete, onDayClose, onDayOpen }) => {
 
         <div className="space-y-4 max-h-40 overflow-y-auto pr-2">
           {item.unloading_items?.map((it, idx) => {
-            const available = it.available ?? it.quantity ?? 0;
+            const available = it.remaining_quantity ?? it.quantity ?? 0;
             const total = it.total ?? it.quantity ?? 0;
             const percentage =
               total > 0 ? Math.round((available / total) * 100) : 0;
