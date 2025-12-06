@@ -5,10 +5,19 @@ import { Plus } from "lucide-react";
 const ItemCard = ({ item, onAdd }) => {
   const [qty, setQty] = useState("");
   const [rate, setRate] = useState("");
+  const [weight, setWeight] = useState("");
 
   const handleAdd = () => {
     if (!qty || !rate) return;
-    onAdd({ item_name: item.name, qty: Number(qty), rate: Number(rate) });
+    if (qty > item.remaining_quantity)
+      return alert("Added quantity is more then remaining qty.");
+    onAdd({
+      item_name: item.name,
+      weight: Number(weight),
+      qty: Number(qty),
+      rate: Number(rate),
+    });
+    setWeight("");
     setQty("");
     setRate("");
   };
@@ -25,6 +34,15 @@ const ItemCard = ({ item, onAdd }) => {
 
       {/* Inputs */}
       <div className="mt-4 flex items-center gap-3">
+        <input
+          placeholder="Weight"
+          value={weight}
+          onChange={(e) => setWeight(e.target.value)}
+          className="w-20 px-3 py-2 rounded-xl border text-sm focus:ring-2 focus:ring-blue-300 focus:outline-none"
+          type="number"
+          min="0"
+        />
+
         <input
           placeholder="Qty"
           value={qty}
