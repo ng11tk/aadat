@@ -3,6 +3,7 @@ import SummaryModal from "./components/summary";
 import ItemCard from "./components/itemCard";
 import {
   FETCH_MODI_ITEMS,
+  FETCH_SALES,
   FIND_SALES_ORDERS,
   GET_BUYERS,
 } from "../../graphql/query";
@@ -97,7 +98,10 @@ const SalesDashboard = () => {
 
   const totalAmount = useMemo(
     () =>
-      addedItems.reduce((sum, it) => sum + (it.qty || 0) * (it.rate || 0), 0),
+      addedItems.reduce(
+        (sum, it) => sum + (it.weight || 0) * (it.qty || 0) * (it.rate || 0),
+        0
+      ),
     [addedItems]
   );
 
@@ -115,6 +119,7 @@ const SalesDashboard = () => {
         next[idx] = {
           ...next[idx],
           qty: Number(next[idx].qty) + Number(payload.qty),
+          weight: Number(next[idx].weight) + Number(payload.weight),
         };
         return next;
       }
@@ -138,7 +143,7 @@ const SalesDashboard = () => {
           item_name: it.item_name,
           quantity: it.qty,
           unit_price: it.rate,
-          item_weight: it.weight || 10,
+          item_weight: it.weight,
           item_date: new Date().toISOString().split("T")[0],
         })),
       },
@@ -189,6 +194,14 @@ const SalesDashboard = () => {
                 order_id: existingOrder.id,
               })),
             },
+            refetchQueries: [
+              {
+                query: FETCH_SALES,
+                variables: {
+                  where: { order_date: new Date().toISOString().split("T")[0] },
+                },
+              },
+            ],
           });
           console.log("Sales order items updated:", insertItemsData);
         } catch (insertErr) {
@@ -205,6 +218,16 @@ const SalesDashboard = () => {
                   total_amount: previousTotal,
                 },
               },
+              refetchQueries: [
+                {
+                  query: FETCH_SALES,
+                  variables: {
+                    where: {
+                      order_date: new Date().toISOString().split("T")[0],
+                    },
+                  },
+                },
+              ],
             });
             console.log("Rollback successful:", rollbackData);
           } catch (rollbackErr) {
@@ -219,6 +242,14 @@ const SalesDashboard = () => {
       } else {
         const { data: insertData } = await upsertSalesOrder({
           variables: { object: payload },
+          refetchQueries: [
+            {
+              query: FETCH_SALES,
+              variables: {
+                where: { order_date: new Date().toISOString().split("T")[0] },
+              },
+            },
+          ],
         });
         console.log("New sales order created:", insertData);
       }
@@ -328,7 +359,7 @@ const SalesDashboard = () => {
                         item_name: payload.item_name,
                         qty: Number(payload.qty),
                         rate: Number(payload.rate),
-                        weight: selectedModi.weight,
+                        weight: Number(payload.weight),
                       })
                     }
                   />
