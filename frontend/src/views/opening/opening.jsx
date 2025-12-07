@@ -147,6 +147,23 @@ const OpeningStock = () => {
           advance_amount: item.advance,
         },
       },
+      expense_bills: {
+        data: {
+          category: "Bhada",
+          advance: 0,
+          amount: Number(item.bhada) || 0,
+          remaining_amount: Number(item.bhada) || 0,
+          payment_status: "partial",
+          bhada_details: {
+            vehicle: item.vehicle_number,
+            modi: item.name,
+            item: Array.isArray(item.unloading_items)
+              ? item.unloading_items.map((i) => i.name)
+              : [],
+          },
+          date: new Date().toISOString().split("T")[0],
+        },
+      },
     };
 
     try {

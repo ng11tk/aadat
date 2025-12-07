@@ -328,11 +328,9 @@ const ExpenseDetails = () => {
             </p>
           </div>
           <div className="text-center">
-            <p className="text-gray-500 text-sm">Total Expense</p>
+            <p className="text-gray-500 text-sm">Total Due</p>
             <p className="font-semibold text-red-600">
-              {formatCurrency(
-                (expenseTotal?.amount || 0) + (expenseTotal?.advance || 0)
-              )}
+              {formatCurrency(expenseTotal?.remaining_amount || 0)}
             </p>
           </div>
         </div>
@@ -347,152 +345,144 @@ const ExpenseDetails = () => {
         {expenses.length === 0 && (
           <p className="text-gray-500 italic">No expenses found</p>
         )}
-        {expenses.map((exp) => (
-          <motion.div
-            key={exp.id}
-            layout
-            whileHover={{ y: -3, boxShadow: "0px 8px 20px rgba(0,0,0,0.1)" }}
-            className={`relative rounded-2xl overflow-hidden transition cursor-pointer ${
-              selectedPayments[exp.id]
-                ? "bg-emerald-50 border-2 border-emerald-400 shadow-lg ring-2 ring-emerald-200"
-                : "bg-white border border-gray-200 shadow-sm"
-            }`}
-          >
-            {/* Status & Selection Tags */}
-            {(() => {
-              const due = (exp.amount || 0) - (exp.advance || 0);
-              const isPaid = due <= 0;
-              const isSelected = Boolean(selectedPayments[exp.id]);
-              const selectionInfo = isSelected
-                ? selectedPayments[exp.id]
-                : null;
-              return (
-                <>
-                  {/* Payment Status Tag (top-right) */}
-                  <div className="absolute top-3 right-3 z-10">
-                    <span
-                      className={`px-3 py-1.5 text-xs font-bold rounded-full ${
-                        isPaid
-                          ? "bg-emerald-600 text-white"
-                          : "bg-yellow-500 text-white"
-                      }`}
-                    >
-                      {isPaid ? "✓ Paid" : "⚠ Unpaid"}
-                    </span>
-                  </div>
+        {expenses.map((exp) => {
+          const due = exp.remaining_amount || 0;
+          const isPaid = due <= 0;
+          const isSelected = Boolean(selectedPayments[exp.id]);
+          const selectionInfo = isSelected ? selectedPayments[exp.id] : null;
 
-                  {/* Selection Badge (top-left) */}
-                  {isSelected && (
-                    <div className="absolute top-3 left-3 z-20">
-                      <div className="bg-emerald-600 text-white rounded-lg px-3 py-1.5 flex items-center gap-2 shadow-md border border-emerald-700">
-                        <span className="text-sm font-bold">✓ Selected</span>
-                        <span className="text-xs bg-emerald-700 px-2 py-0.5 rounded font-semibold">
-                          {selectionInfo?.mode === "full"
-                            ? "Full"
-                            : `₹${selectionInfo?.amount || 0}`}
-                        </span>
-                      </div>
+          const info = selectedPayments[exp.id] || {
+            mode: "full",
+            amount: due,
+          };
+          return (
+            <motion.div
+              key={exp.id}
+              layout
+              whileHover={{ y: -3, boxShadow: "0px 8px 20px rgba(0,0,0,0.1)" }}
+              className={`relative rounded-2xl overflow-hidden transition cursor-pointer ${
+                isPaid
+                  ? "bg-emerald-50 border-2 border-emerald-400 shadow-lg ring-2 ring-emerald-200"
+                  : "bg-white border border-gray-200 shadow-sm"
+              }`}
+            >
+              {/* Status & Selection Tags */}
+              <>
+                {/* Payment Status Tag (top-right) */}
+                <div className="absolute top-3 right-3 z-10">
+                  <span
+                    className={`px-3 py-1.5 text-xs font-bold rounded-full ${
+                      isPaid
+                        ? "bg-emerald-600 text-white"
+                        : "bg-yellow-500 text-white"
+                    }`}
+                  >
+                    {isPaid ? "✓ Paid" : "⚠ Unpaid"}
+                  </span>
+                </div>
+
+                {/* Selection Badge (top-left) */}
+                {isSelected && (
+                  <div className="absolute top-3 left-3 z-20">
+                    <div className="bg-emerald-600 text-white rounded-lg px-3 py-1.5 flex items-center gap-2 shadow-md border border-emerald-700">
+                      <span className="text-sm font-bold">✓ Selected</span>
+                      <span className="text-xs bg-emerald-700 px-2 py-0.5 rounded font-semibold">
+                        {selectionInfo?.mode === "full"
+                          ? "Full"
+                          : `₹${selectionInfo?.amount || 0}`}
+                      </span>
                     </div>
-                  )}
-                </>
-              );
-            })()}
-            {/* Category Color Strip */}
-            <div className={`h-2 ${categoryColors[exp.category]}`} />
-
-            {/* Card Content */}
-            <div className="p-6">
-              {/* Header */}
-              <div className="flex justify-between items-center mb-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-semibold">
-                    {exp?.employee?.name?.[0]?.toUpperCase() ||
-                      exp.category?.[0]?.toUpperCase()}
                   </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-800">
-                      {exp?.employee?.name ? exp?.employee?.name : exp.category}
-                    </h3>
-                    <p className="text-xs text-gray-500">
-                      {exp.person || exp.description || ""}
+                )}
+              </>
+
+              {/* Category Color Strip */}
+              <div className={`h-2 ${categoryColors[exp.category]}`} />
+
+              {/* Card Content */}
+              <div className="p-6">
+                {/* Header */}
+                <div className="flex justify-between items-center mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-semibold">
+                      {exp?.employee?.name?.[0]?.toUpperCase() ||
+                        exp.category?.[0]?.toUpperCase()}
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-800">
+                        {exp?.employee?.name
+                          ? exp?.employee?.name
+                          : exp.category}
+                      </h3>
+                      <p className="text-xs text-gray-500">
+                        {exp.person || exp.description || ""}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-sm text-gray-500">
+                    {new Date(exp.date).toLocaleDateString()}
+                  </span>
+                </div>
+                {/* Details */}
+                <div className="space-y-1 text-sm text-gray-600">
+                  {exp.person && (
+                    <p>
+                      👤 <span className="font-medium">{exp.person}</span>
                     </p>
+                  )}
+                  {exp?.bhada_details?.vehicle && (
+                    <p>
+                      🚚 Vehicle:{" "}
+                      <span className="font-medium">
+                        {exp.bhada_details.vehicle}
+                      </span>
+                    </p>
+                  )}
+                  {exp?.bhada_details?.modi && (
+                    <p>
+                      🏬 Supplier:{" "}
+                      <span className="font-medium">
+                        {exp.bhada_details.modi}
+                      </span>
+                    </p>
+                  )}
+                  {exp?.bhada_details?.item && (
+                    <p>
+                      📦 Item:{" "}
+                      <span className="font-medium">
+                        {exp.bhada_details.item}
+                      </span>
+                    </p>
+                  )}
+                  {exp?.description && (
+                    <p className="italic text-gray-500">"{exp.description}"</p>
+                  )}
+                </div>
+                {/* Amount, Advance, and Due */}
+                <div className="mt-4 grid grid-cols-3 gap-3">
+                  <div>
+                    <p className="text-sm text-gray-500">Amount</p>
+                    <div className="text-lg font-bold text-emerald-600">
+                      {formatCurrency(exp.amount)}
+                    </div>
+                  </div>
+
+                  <div className="text-center">
+                    <p className="text-sm text-yellow-600">Advance</p>
+                    <div className="text-lg font-bold text-yellow-600">
+                      {formatCurrency(exp.advance)}
+                    </div>
+                  </div>
+
+                  <div className="text-right">
+                    <p className="text-sm text-red-600">Due</p>
+                    <div className="text-lg font-bold text-red-600">
+                      {formatCurrency(exp.remaining_amount || 0)}
+                    </div>
                   </div>
                 </div>
-                <span className="text-sm text-gray-500">
-                  {new Date(exp.date).toLocaleDateString()}
-                </span>
-              </div>
-
-              {/* Details */}
-              <div className="space-y-1 text-sm text-gray-600">
-                {exp.person && (
-                  <p>
-                    👤 <span className="font-medium">{exp.person}</span>
-                  </p>
-                )}
-                {exp?.bhada_details?.vehicle && (
-                  <p>
-                    🚚 Vehicle:{" "}
-                    <span className="font-medium">
-                      {exp.bhada_details.vehicle}
-                    </span>
-                  </p>
-                )}
-                {exp?.bhada_details?.modi && (
-                  <p>
-                    🏬 Supplier:{" "}
-                    <span className="font-medium">
-                      {exp.bhada_details.modi}
-                    </span>
-                  </p>
-                )}
-                {exp?.bhada_details?.item && (
-                  <p>
-                    📦 Item:{" "}
-                    <span className="font-medium">
-                      {exp.bhada_details.item}
-                    </span>
-                  </p>
-                )}
-                {exp?.description && (
-                  <p className="italic text-gray-500">"{exp.description}"</p>
-                )}
-              </div>
-
-              {/* Amount, Advance, and Due */}
-              <div className="mt-4 grid grid-cols-3 gap-3">
-                <div>
-                  <p className="text-sm text-gray-500">Amount</p>
-                  <div className="text-lg font-bold text-emerald-600">
-                    {formatCurrency(exp.amount)}
-                  </div>
-                </div>
-
-                <div className="text-center">
-                  <p className="text-sm text-yellow-600">Advance</p>
-                  <div className="text-lg font-bold text-yellow-600">
-                    {formatCurrency(exp.advance)}
-                  </div>
-                </div>
-
-                <div className="text-right">
-                  <p className="text-sm text-red-600">Due</p>
-                  <div className="text-lg font-bold text-red-600">
-                    {formatCurrency((exp.amount || 0) - (exp.advance || 0))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Payment actions (similar to supplierDetails) */}
-              {(() => {
-                const due = (exp.amount || 0) - (exp.advance || 0);
-                const isPaid = due <= 0;
-                const info = selectedPayments[exp.id] || {
-                  mode: "full",
-                  amount: due,
-                };
-                if (isPaid) return null;
-                return (
+                {/* Payment actions (similar to supplierDetails) */}
+                {!isPaid && (
                   <div className="mt-3 space-y-2">
                     <div className="flex gap-2">
                       <button
@@ -565,11 +555,11 @@ const ExpenseDetails = () => {
                       </p>
                     )}
                   </div>
-                );
-              })()}
-            </div>
-          </motion.div>
-        ))}
+                )}
+              </div>
+            </motion.div>
+          );
+        })}
       </div>
 
       {/* Total Selected Payable (sticky) */}

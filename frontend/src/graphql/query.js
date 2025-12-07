@@ -268,7 +268,7 @@ export const GET_EXPENSE_CATEGORIES_AGGREGATE = gql`
   }
 `;
 export const FETCH_EXPENSE_BILLS = gql`
-  query MyQuery(
+  query FETCH_EXPENSE_BILLS(
     $where: expense_expense_bills_bool_exp = {}
     $order_by: [expense_expense_bills_order_by!] = { date: desc_nulls_first }
   ) {
@@ -277,6 +277,7 @@ export const FETCH_EXPENSE_BILLS = gql`
         sum {
           advance
           amount
+          remaining_amount
         }
       }
       nodes {
@@ -292,6 +293,7 @@ export const FETCH_EXPENSE_BILLS = gql`
         }
         remaining_amount
         payment_status
+        unloading_id
       }
     }
   }
