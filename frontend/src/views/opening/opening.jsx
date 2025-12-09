@@ -228,9 +228,6 @@ const OpeningStock = () => {
     }
   };
 
-  if (openingLoading)
-    return <p className="text-sm text-gray-500">Fetching data...</p>;
-
   if (openingError) {
     console.error("🚀 ~ OpeningStock ~ openingError:", openingError);
     return <p className="text-sm text-red-500">Error fetching data</p>;
@@ -257,51 +254,59 @@ const OpeningStock = () => {
         </div>
       </div>
 
-      {/* Closed Items */}
-      <h2 className="text-2xl font-semibold text-gray-800 mb-6 flex items-center gap-2">
-        ✅ Closed Items
-      </h2>
-      {incomingItems.filter((item) => item.isDayClose).length === 0 ? (
-        <p className="text-center text-gray-500 italic mb-8">
-          No closed data available 📭
-        </p>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-          {incomingItems
-            .filter((item) => item.isDayClose)
-            .map((item) => (
-              <ItemCard
-                key={item.id}
-                item={item}
-                isClosed={true}
-                onDayOpen={handleCloseItems}
-              />
-            ))}
-        </div>
+      {/* Cards */}
+      {openingLoading && (
+        <p className="text-sm text-gray-500">Fetching data...</p>
       )}
+      {!openingLoading && (
+        <>
+          {/* Closed Items */}
+          <h2 className="text-2xl font-semibold text-gray-800 mb-6 flex items-center gap-2">
+            ✅ Closed Items
+          </h2>
+          {incomingItems.filter((item) => item.isDayClose).length === 0 ? (
+            <p className="text-center text-gray-500 italic mb-8">
+              No closed data available 📭
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+              {incomingItems
+                .filter((item) => item.isDayClose)
+                .map((item) => (
+                  <ItemCard
+                    key={item.id}
+                    item={item}
+                    isClosed={true}
+                    onDayOpen={handleCloseItems}
+                  />
+                ))}
+            </div>
+          )}
 
-      {/* Incoming Items */}
-      <h2 className="text-2xl font-semibold text-gray-800 mb-6 flex items-center gap-2">
-        🚀 Incoming Items
-      </h2>
-      {incomingItems.filter((item) => !item.isDayClose).length === 0 ? (
-        <p className="text-center text-gray-500 italic">
-          No incoming items yet — add one 🚚
-        </p>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {incomingItems
-            .filter((item) => !item.isDayClose)
-            .map((item) => (
-              <ItemCard
-                key={item.id}
-                item={item}
-                isClosed={false}
-                onDelete={handleDeleteItem}
-                onDayClose={handleCloseItems}
-              />
-            ))}
-        </div>
+          {/* Incoming Items */}
+          <h2 className="text-2xl font-semibold text-gray-800 mb-6 flex items-center gap-2">
+            🚀 Incoming Items
+          </h2>
+          {incomingItems.filter((item) => !item.isDayClose).length === 0 ? (
+            <p className="text-center text-gray-500 italic">
+              No incoming items yet — add one 🚚
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {incomingItems
+                .filter((item) => !item.isDayClose)
+                .map((item) => (
+                  <ItemCard
+                    key={item.id}
+                    item={item}
+                    isClosed={false}
+                    onDelete={handleDeleteItem}
+                    onDayClose={handleCloseItems}
+                  />
+                ))}
+            </div>
+          )}
+        </>
       )}
 
       {/* Modal */}
