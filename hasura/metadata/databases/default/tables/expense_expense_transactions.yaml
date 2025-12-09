@@ -1,0 +1,7 @@
+table:
+  name: expense_transactions
+  schema: expense
+object_relationships:
+  - name: expense_bill
+    using:
+      foreign_key_constraint_on: expense_bill_id

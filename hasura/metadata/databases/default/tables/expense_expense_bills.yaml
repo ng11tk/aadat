@@ -1,0 +1,21 @@
+table:
+  name: expense_bills
+  schema: expense
+object_relationships:
+  - name: categoryByCategory
+    using:
+      foreign_key_constraint_on: category
+  - name: employee
+    using:
+      foreign_key_constraint_on: expense_emp_id
+  - name: unloading
+    using:
+      foreign_key_constraint_on: unloading_id
+array_relationships:
+  - name: expense_transactions
+    using:
+      foreign_key_constraint_on:
+        column: expense_bill_id
+        table:
+          name: expense_transactions
+          schema: expense

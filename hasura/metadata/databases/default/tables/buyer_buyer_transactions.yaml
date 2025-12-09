@@ -1,0 +1,7 @@
+table:
+  name: buyer_transactions
+  schema: buyer
+object_relationships:
+  - name: buyer_purchase
+    using:
+      foreign_key_constraint_on: buyer_purchase_id

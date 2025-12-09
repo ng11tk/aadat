@@ -1,0 +1,18 @@
+table:
+  name: supplier_unloading
+  schema: supplier
+object_relationships:
+  - name: supplier
+    using:
+      foreign_key_constraint_on: supplier_name
+  - name: unloading
+    using:
+      foreign_key_constraint_on: unloading_id
+array_relationships:
+  - name: supplier_transactions
+    using:
+      foreign_key_constraint_on:
+        column: supplier_unloading_id
+        table:
+          name: supplier_transaction
+          schema: supplier

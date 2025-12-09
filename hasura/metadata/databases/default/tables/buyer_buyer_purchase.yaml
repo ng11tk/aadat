@@ -1,0 +1,18 @@
+table:
+  name: buyer_purchase
+  schema: buyer
+object_relationships:
+  - name: buyer
+    using:
+      foreign_key_constraint_on: buyer_id
+  - name: sales_order
+    using:
+      foreign_key_constraint_on: sale_order_id
+array_relationships:
+  - name: buyer_transactions
+    using:
+      foreign_key_constraint_on:
+        column: buyer_purchase_id
+        table:
+          name: buyer_transactions
+          schema: buyer

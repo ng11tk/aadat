@@ -1,0 +1,15 @@
+table:
+  name: employees
+  schema: expense
+object_relationships:
+  - name: categoryByCategory
+    using:
+      foreign_key_constraint_on: category
+array_relationships:
+  - name: expense_bills
+    using:
+      foreign_key_constraint_on:
+        column: expense_emp_id
+        table:
+          name: expense_bills
+          schema: expense

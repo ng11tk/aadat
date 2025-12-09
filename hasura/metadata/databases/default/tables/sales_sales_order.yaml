@@ -1,15 +1,15 @@
 table:
-  name: unloading_item
-  schema: opening
+  name: sales_order
+  schema: sales
 object_relationships:
-  - name: unloading
+  - name: buyer
     using:
-      foreign_key_constraint_on: unloading_id
+      foreign_key_constraint_on: buyer_id
 array_relationships:
   - name: sales_order_items
     using:
       foreign_key_constraint_on:
-        column: unloading_item_id
+        column: order_id
         table:
           name: sales_order_item
           schema: sales

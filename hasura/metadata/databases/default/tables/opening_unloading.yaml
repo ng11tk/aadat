@@ -1,14 +1,22 @@
 table:
   name: unloading
   schema: opening
-array_relationships:
-  - name: remaining_items
+object_relationships:
+  - name: supplier_unloading
     using:
       foreign_key_constraint_on:
         column: unloading_id
         table:
-          name: remaining_item
-          schema: opening
+          name: supplier_unloading
+          schema: supplier
+array_relationships:
+  - name: expense_bills
+    using:
+      foreign_key_constraint_on:
+        column: unloading_id
+        table:
+          name: expense_bills
+          schema: expense
   - name: unloading_items
     using:
       foreign_key_constraint_on:

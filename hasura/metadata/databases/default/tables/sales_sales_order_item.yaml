@@ -1,0 +1,13 @@
+table:
+  name: sales_order_item
+  schema: sales
+object_relationships:
+  - name: sales_order
+    using:
+      foreign_key_constraint_on: order_id
+  - name: supplier
+    using:
+      foreign_key_constraint_on: supplier_name
+  - name: unloading_item
+    using:
+      foreign_key_constraint_on: unloading_item_id

@@ -1,11 +1,13 @@
 version: 3
-# endpoint: http://localhost:8080
-# admin_secret: youradminsecret
+endpoint: http://localhost:8080
+admin_secret: localadmin
 
-endpoint: https://daily-progress.hasura.app
-admin_secret: 4MzPVqUxP8NnDGpxZplbJ6KHY55sKHxcEjOHTyqCmkhljlVKUTCUP5gbJyULrVQ2
+# endpoint: https://daily-progress.hasura.app
+# admin_secret: 4MzPVqUxP8NnDGpxZplbJ6KHY55sKHxcEjOHTyqCmkhljlVKUTCUP5gbJyULrVQ2
 
 metadata_directory: metadata
+migrations_directory: migrations
+
 actions:
   kind: synchronous
   handler_webhook_baseurl: http://localhost:3000
