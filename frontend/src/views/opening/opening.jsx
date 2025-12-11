@@ -8,11 +8,8 @@ import {
   UPDATE_UNLOADING_STATUS,
 } from "../../graphql/mutation";
 import { promiseResolver } from "../../utils/promisResolver";
-import {
-  FETCH_MODI_ITEMS,
-  GET_ALL_OPENING_UNLOADING,
-} from "../../graphql/query";
-import { useMutation, useQuery } from "@apollo/client/react"; // <- fixed import
+import { GET_ALL_OPENING_UNLOADING } from "../../graphql/query";
+import { useApolloClient, useMutation, useQuery } from "@apollo/client/react"; // <- fixed import
 
 const initialItem = {
   type: "supplier",
@@ -41,6 +38,8 @@ const initialItem = {
 };
 
 const OpeningStock = () => {
+  const client = useApolloClient();
+
   const [incomingItems, setIncomingItems] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newItem, setNewItem] = useState(initialItem);
@@ -204,15 +203,13 @@ const OpeningStock = () => {
             pk_columns: { id },
             isDayClose: !itemToClose.isDayClose,
           },
-          refetchQueries: [
-            {
-              query: FETCH_MODI_ITEMS,
-              variables: {
-                unloading_date: new Date().toISOString().split("T")[0],
-                isDayClose: false,
-              },
-            },
-          ],
+          onCompleted: () => {
+            client.cache.evict({
+              fieldName: "opening_unloading",
+            });
+
+            client.cache.gc(); // cleanup orphaned fields
+          },
         })
       );
 
@@ -220,9 +217,6 @@ const OpeningStock = () => {
         console.error("🚀 ~ handleCloseItems ~ update error:", updErr);
         return;
       }
-
-      // 2) refetch to ensure server-authoritative view
-      await refetchOpeningData();
     } catch (err) {
       console.error("🚀 ~ handleCloseItems ~ exception:", err);
     }

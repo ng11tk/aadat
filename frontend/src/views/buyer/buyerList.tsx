@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus } from "lucide-react";
 import { motion } from "framer-motion";
-import { useMutation, useQuery } from "@apollo/client/react";
+import { useApolloClient, useMutation, useQuery } from "@apollo/client/react";
 import { INSERT_BUYER } from "../../graphql/mutation";
 import { promiseResolver } from "../../utils/promisResolver";
 import { FETCH_BUYERS_LIST } from "../../graphql/query";
@@ -10,6 +10,7 @@ import { useDebounce } from "../../utils/debounce";
 
 const BuyerDashboard = () => {
   const navigate = useNavigate();
+  const client = useApolloClient();
 
   // modal state
   const [buyerFilter, setBuyerFilter] = useState("");
@@ -73,6 +74,13 @@ const BuyerDashboard = () => {
         variables: {
           object: { name: newBuyer.name, phone: digits },
         },
+        onCompleted: () => {
+          client.cache.evict({
+            fieldName: "buyer_buyers",
+          });
+
+          client.cache.gc();
+        },
       })
     );
 
@@ -81,7 +89,6 @@ const BuyerDashboard = () => {
       return;
     }
 
-    buyersRefetch();
     setNewBuyer({ name: "", contact: "" });
     setErrors({ contact: "" });
     setIsModalOpen(false);
