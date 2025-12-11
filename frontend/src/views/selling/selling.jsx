@@ -42,8 +42,10 @@ const SalesDashboard = () => {
     refetch: modiRefetch,
   } = useQuery(FETCH_MODI_ITEMS, {
     variables: {
-      unloading_date: new Date().toISOString().split("T")[0],
-      isDayClose: false,
+      where: {
+        isDayClose: { _eq: false },
+        unloading_items: { remaining_quantity: { _neq: 0 } },
+      },
     },
   });
   const modiItemsData = modiData?.opening_unloading || [];

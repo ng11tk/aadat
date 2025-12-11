@@ -59,7 +59,7 @@ const OpeningStock = () => {
   } = useQuery(GET_ALL_OPENING_UNLOADING, {
     variables: {
       whereUnloading: {
-        unloading_date: { _eq: new Date().toISOString().split("T")[0] },
+        unloading_items: { remaining_quantity: { _neq: 0 } },
       },
       whereUnloadingItems: {},
     },
