@@ -1,7 +1,7 @@
 import React, { use, useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "react-router-dom";
-import { useMutation, useQuery } from "@apollo/client/react";
+import { useApolloClient, useMutation, useQuery } from "@apollo/client/react";
 import { FETCH_BUYER_DETAILS } from "../../graphql/query";
 import { INSERT_BUYER_TRANSACTION } from "../../graphql/mutation";
 import { promiseResolver } from "../../utils/promisResolver";
@@ -9,6 +9,8 @@ import { promiseResolver } from "../../utils/promisResolver";
 const formatDate = (date: Date) => date.toISOString().split("T")[0];
 
 const BuyerDetails = () => {
+  const client = useApolloClient();
+
   const today = new Date();
   const location = useLocation();
   const buyerFromState = location.state?.buyer || {};
@@ -45,46 +47,44 @@ const BuyerDetails = () => {
   // fetch buyer details
   const {
     error: buyerError,
-    data: buyerData,
+    data: { buyer_buyers_by_pk: buyer_buyers_by_pk = {} } = {},
     loading: buyerLoading,
     refetch: refetchBuyer,
   } = useQuery(FETCH_BUYER_DETAILS, {
     variables: { id: buyerFromState.id, where: whereBuyerTransactionsDetails },
   });
 
-  const buyerDetails = buyerData?.buyer_buyers_by_pk || {};
-
   useEffect(() => {
     // populate buyer
-    if (!buyerData) return;
+    if (
+      !buyer_buyers_by_pk?.buyer_purchases_aggregate?.nodes ||
+      !buyer_buyers_by_pk?.buyer_purchases_aggregate?.aggregate
+    )
+      return;
     // try to load transactions for this buyer from localStorage (key: sales)
-    try {
-      // normalize transactions
-      const t = buyerDetails.buyer_purchases_aggregate.nodes.map(
-        (s: any, idx: number) => ({
-          id: s.id,
-          date: s.purchase_date,
-          total: s.total_amount || 0,
-          due: s.remaining_amount || 0,
-          items: s.sales_order.sales_order_items.map((it: any) => ({
-            name: it.item_name,
-            quantity: it.quantity,
-            rate: it.unit_price,
-          })),
-        })
-      );
-      const { remaining_amount, total_amount } =
-        buyerDetails?.buyer_purchases_aggregate?.aggregate.sum;
-      setBuyer({
-        ...buyer,
-        total: total_amount,
-        due: remaining_amount,
-      });
-      setTransactions(t);
-    } catch (err) {
-      setTransactions([]);
-    }
-  }, [buyerData]);
+    // normalize transactions
+    const t = buyer_buyers_by_pk?.buyer_purchases_aggregate?.nodes.map(
+      (s: any, idx: number) => ({
+        id: s.id,
+        date: s.purchase_date,
+        total: s.total_amount || 0,
+        due: s.remaining_amount || 0,
+        items: s.sales_order.sales_order_items.map((it: any) => ({
+          name: it.item_name,
+          quantity: it.quantity,
+          rate: it.unit_price,
+        })),
+      })
+    );
+    const { remaining_amount, total_amount } =
+      buyer_buyers_by_pk?.buyer_purchases_aggregate?.aggregate?.sum;
+    setBuyer({
+      ...buyer,
+      total: total_amount,
+      due: remaining_amount,
+    });
+    setTransactions(t);
+  }, [buyer_buyers_by_pk]);
 
   const applyQuickFilter = (mode: string) => {
     setFilterMode(mode);
@@ -143,18 +143,23 @@ const BuyerDetails = () => {
     const output = Object.entries(selectedTransactions).map(([id, value]) => {
       return { buyer_purchase_id: id, amount: value.amount };
     });
-    console.log("🚀 ~ confirmPayment ~ updated:", output);
 
     const [data, error] = await promiseResolver(
       insertBuyerTransaction({
         variables: { objects: output },
+        onCompleted: () => {
+          client.cache.evict({
+            fieldName: "buyer_buyers",
+          });
+
+          client.cache.gc();
+        },
       })
     );
     if (error) {
-      alert("Error recording payment. Please try again.");
+      console.error("Error recording payment. Please try again.", error);
       return;
     }
-    alert("Payment recorded successfully.");
 
     // reset selection
     setSelectedTransactions({});
@@ -176,11 +181,11 @@ const BuyerDetails = () => {
         <div className="bg-white shadow-md rounded-xl p-4 border border-gray-200 flex justify-around">
           <div className="text-center">
             <p className="text-gray-500 text-sm">Total Sale</p>
-            <p className="font-semibold text-indigo-600">₹{buyer.total}</p>
+            <p className="font-semibold text-indigo-600">₹{buyer.total || 0}</p>
           </div>
           <div className="text-center">
             <p className="text-gray-500 text-sm">Due</p>
-            <p className="font-semibold text-red-600">₹{buyer.due}</p>
+            <p className="font-semibold text-red-600">₹{buyer.due || 0}</p>
           </div>
           <div className="text-center">
             <p className="text-gray-500 text-sm">Advance</p>
@@ -249,120 +254,124 @@ const BuyerDetails = () => {
 
       {/* Transactions Grid */}
       <div className="grid md:grid-cols-3 gap-4">
-        {filtered.length === 0 && <p>No, Items found.</p>}
+        {buyerLoading && <p>Loading ...</p>}
+        {!buyerLoading && filtered.length === 0 && <p>No, Items found.</p>}
 
-        {filtered.map((t) => {
-          const info = selectedTransactions[t.id] || {
-            mode: "full",
-            amount: t.due,
-          };
-          const isPaid = t.due === 0;
-          return (
-            <motion.div
-              key={t.id}
-              layout
-              whileHover={
-                !isPaid
-                  ? { y: -4, boxShadow: "0px 8px 16px rgba(0,0,0,0.1)" }
-                  : {}
-              }
-              className={`relative rounded-xl p-5 shadow-md border transition cursor-pointer ${
-                isPaid
-                  ? "bg-gradient-to-r from-indigo-50 to-indigo-100 border-indigo-300"
-                  : "bg-white border-gray-200"
-              }`}
-              onClick={() => setModalTransaction(t)}
-            >
-              <div className="absolute top-2 right-2">
-                <span
-                  className={`px-3 py-1 text-xs font-semibold rounded-full ${
-                    isPaid
-                      ? "bg-indigo-600 text-white"
-                      : "bg-yellow-500 text-white"
-                  }`}
-                >
-                  {isPaid ? "Paid ✅" : "Unpaid ⚠️"}
-                </span>
-              </div>
+        {!buyerLoading &&
+          filtered.map((t) => {
+            const info = selectedTransactions[t.id] || {
+              mode: "full",
+              amount: t.due,
+            };
+            const isPaid = t.due === 0;
+            return (
+              <motion.div
+                key={t.id}
+                layout
+                whileHover={
+                  !isPaid
+                    ? { y: -4, boxShadow: "0px 8px 16px rgba(0,0,0,0.1)" }
+                    : {}
+                }
+                className={`relative rounded-xl p-5 shadow-md border transition cursor-pointer ${
+                  isPaid
+                    ? "bg-gradient-to-r from-indigo-50 to-indigo-100 border-indigo-300"
+                    : "bg-white border-gray-200"
+                }`}
+                onClick={() => setModalTransaction(t)}
+              >
+                <div className="absolute top-2 right-2">
+                  <span
+                    className={`px-3 py-1 text-xs font-semibold rounded-full ${
+                      isPaid
+                        ? "bg-indigo-600 text-white"
+                        : "bg-yellow-500 text-white"
+                    }`}
+                  >
+                    {isPaid ? "Paid ✅" : "Unpaid ⚠️"}
+                  </span>
+                </div>
 
-              <p className="font-semibold text-gray-800">{t.date}</p>
-              <p className="text-sm text-gray-600">Total: ₹{t.total}</p>
-              <p className="text-sm font-medium text-red-600">Due: ₹{t.due}</p>
+                <p className="font-semibold text-gray-800">{t.date}</p>
+                <p className="text-sm text-gray-600">Total: ₹{t.total}</p>
+                <p className="text-sm font-medium text-red-600">
+                  Due: ₹{t.due}
+                </p>
 
-              {!isPaid && (
-                <div className="mt-3 space-y-2">
-                  <div className="flex gap-2">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        updateTransactionSelection(t.id, "full");
-                      }}
-                      className={`flex-1 px-3 py-1 rounded-full text-sm font-medium ${
-                        info.mode === "full"
-                          ? "bg-indigo-500 text-white"
-                          : "bg-gray-100 text-gray-700 hover:bg-indigo-100"
-                      }`}
-                    >
-                      Full
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        updateTransactionSelection(
-                          t.id,
-                          "partial",
-                          info.amount || 0
-                        );
-                      }}
-                      className={`flex-1 px-3 py-1 rounded-full text-sm font-medium ${
-                        info.mode === "partial"
-                          ? "bg-yellow-400 text-white"
-                          : "bg-gray-100 text-gray-700 hover:bg-yellow-100"
-                      }`}
-                    >
-                      Partial
-                    </button>
-                  </div>
-                  {info.mode === "partial" && (
-                    <div className="flex gap-2 mt-2">
-                      <input
-                        type="number"
-                        min={0}
-                        max={t.due}
-                        value={info.amount || ""}
-                        onChange={(e) =>
-                          setSelectedTransactions((prev: any) => ({
-                            ...prev,
-                            [t.id]: {
-                              ...prev[t.id],
-                              amount: Number(e.target.value),
-                            },
-                          }))
-                        }
-                        className="flex-1 input input-sm input-bordered bg-white"
-                        placeholder="₹ Amount"
-                        onClick={(e) => e.stopPropagation()}
-                      />
+                {!isPaid && (
+                  <div className="mt-3 space-y-2">
+                    <div className="flex gap-2">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
+                          updateTransactionSelection(t.id, "full");
                         }}
-                        className="btn btn-sm btn-primary"
+                        className={`flex-1 px-3 py-1 rounded-full text-sm font-medium ${
+                          info.mode === "full"
+                            ? "bg-indigo-500 text-white"
+                            : "bg-gray-100 text-gray-700 hover:bg-indigo-100"
+                        }`}
                       >
-                        ✔
+                        Full
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          updateTransactionSelection(
+                            t.id,
+                            "partial",
+                            info.amount || 0
+                          );
+                        }}
+                        className={`flex-1 px-3 py-1 rounded-full text-sm font-medium ${
+                          info.mode === "partial"
+                            ? "bg-yellow-400 text-white"
+                            : "bg-gray-100 text-gray-700 hover:bg-yellow-100"
+                        }`}
+                      >
+                        Partial
                       </button>
                     </div>
-                  )}
-                  {info.mode === "partial" && info.finalized && (
-                    <p className="text-xs mt-1 text-orange-600 font-medium">
-                      Partial Paid: ₹{info.amount}
-                    </p>
-                  )}
-                </div>
-              )}
-            </motion.div>
-          );
-        })}
+                    {info.mode === "partial" && (
+                      <div className="flex gap-2 mt-2">
+                        <input
+                          type="number"
+                          min={0}
+                          max={t.due}
+                          value={info.amount || ""}
+                          onChange={(e) =>
+                            setSelectedTransactions((prev: any) => ({
+                              ...prev,
+                              [t.id]: {
+                                ...prev[t.id],
+                                amount: Number(e.target.value),
+                              },
+                            }))
+                          }
+                          className="flex-1 input input-sm input-bordered bg-white"
+                          placeholder="₹ Amount"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                          }}
+                          className="btn btn-sm btn-primary"
+                        >
+                          ✔
+                        </button>
+                      </div>
+                    )}
+                    {info.mode === "partial" && info.finalized && (
+                      <p className="text-xs mt-1 text-orange-600 font-medium">
+                        Partial Paid: ₹{info.amount}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </motion.div>
+            );
+          })}
       </div>
 
       {Object.keys(selectedTransactions).length > 0 && (

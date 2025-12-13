@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Plus } from "lucide-react";
-import { useMutation, useQuery } from "@apollo/client/react";
+import { useApolloClient, useMutation, useQuery } from "@apollo/client/react";
 import { INSERT_EXPENSE_BILLS } from "../../graphql/mutation";
 import { promiseResolver } from "../../utils/promisResolver";
 import {
@@ -64,6 +64,8 @@ const expenseSample = [
 ];
 
 const ExpensePage = () => {
+  const client = useApolloClient();
+
   const navigate = useNavigate();
   const [expenses, setExpenses] = useState([]);
   const [filterMode, setFilterMode] = useState("thisMonth");
@@ -114,7 +116,7 @@ const ExpensePage = () => {
     GET_EXPENSE_CATEGORIES_AGGREGATE,
     {
       variables: { whereBill },
-      fetchPolicy: "network-only",
+      // fetchPolicy: "network-only",
     }
   );
 
@@ -179,12 +181,18 @@ const ExpensePage = () => {
         variables: {
           objects: insertObject,
         },
+        onCompleted: () => {
+          client.cache.evict({ fieldName: "expense_categories" });
+          client.cache.evict({ fieldName: "expense_expense_bills_aggregate" });
+
+          client.cache.gc();
+        },
       })
     );
+
     if (error) {
       console.error("Error inserting expense bill:", error);
     }
-    expenseRefetch();
     setNewExpense({
       category: "Food",
       description: "",
@@ -196,6 +204,7 @@ const ExpensePage = () => {
       date: "",
     });
     setIsModalOpen(false);
+    expenseRefetch();
   };
 
   return (

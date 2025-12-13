@@ -36,14 +36,13 @@ const BuyerDashboard = () => {
     useMutation(INSERT_BUYER);
 
   // fetch buyers details
-  const {
-    data: buyersData,
-    loading: buyersLoading,
-    refetch: buyersRefetch,
-  } = useQuery(FETCH_BUYERS_LIST, {
-    variables: { whereBuyer },
-    fetchPolicy: "network-only",
-  });
+  const { data: buyersData, loading: buyersLoading } = useQuery(
+    FETCH_BUYERS_LIST,
+    {
+      variables: { whereBuyer },
+      // fetchPolicy: "network-only",
+    }
+  );
   const fetchedBuyers = buyersData?.buyer_buyers ?? [];
   useEffect(() => {
     if (!buyersData) return;

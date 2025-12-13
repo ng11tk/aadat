@@ -96,7 +96,8 @@ const SalesDashboard = () => {
 
       {/* Sales List */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {sales.length === 0 ? (
+        {salesLoading && <p className="text-gray-500 italic">Loading ...</p>}
+        {!salesLoading && sales.length === 0 ? (
           <p className="text-gray-500 italic">No sales found</p>
         ) : (
           sales.map((sale) => (

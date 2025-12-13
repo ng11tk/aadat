@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { FETCH_EXPENSE_BILLS, FETCH_EMPLOYEES } from "../../graphql/query";
-import { useQuery, useMutation } from "@apollo/client/react";
+import { useQuery, useMutation, useApolloClient } from "@apollo/client/react";
 import { INSERT_EXPENSE_TRANSACTIONS } from "../../graphql/mutation";
 import { promiseResolver } from "../../utils/promisResolver";
 
@@ -33,6 +33,7 @@ const formatCurrency = (v) => {
 };
 
 const ExpenseDetails = () => {
+  const client = useApolloClient();
   const location = useLocation();
   const expense = location.state?.expense || [];
   const [expenses, setExpenses] = useState([]);
@@ -43,6 +44,8 @@ const ExpenseDetails = () => {
   );
   const [toDate, setToDate] = useState(formatDate(today));
   const [personFilter, setPersonFilter] = useState("");
+  const [selectedPayments, setSelectedPayments] = useState({});
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // where filter for expense expense_bills
   const whereBill = useMemo(() => {
@@ -75,17 +78,32 @@ const ExpenseDetails = () => {
   } = useQuery(FETCH_EXPENSE_BILLS, {
     variables: {
       where: whereBill,
-      order_by: { date: "desc" },
     },
-    fetchPolicy: "network-only",
+    // fetchPolicy: "network-only",
   });
+  useEffect(() => {
+    if (!expenseData) return;
+
+    setExpenseTotal(
+      expenseData?.expense_expense_bills_aggregate?.aggregate?.sum || {}
+    );
+    setExpenses(expenseData?.expense_expense_bills_aggregate.nodes || []);
+  }, [expenseData]);
+
+  // fetch employees for person filter
+  const { data: employeeData } = useQuery(FETCH_EMPLOYEES, {
+    variables: {
+      where: {
+        category: { _eq: expense.category },
+      },
+    },
+  });
+  const employees = employeeData?.expense_employees || [];
 
   //* mutations
   const [insertExpenseTransactions] = useMutation(INSERT_EXPENSE_TRANSACTIONS);
 
   // payment selection state (id -> { mode: 'full'|'partial', amount, finalized })
-  const [selectedPayments, setSelectedPayments] = useState({});
-
   const updatePaymentSelection = (id, mode, amount = 0) => {
     const t = expenses.find((e) => e.id === id);
     const due = (t?.amount || 0) - (t?.advance || 0);
@@ -120,8 +138,6 @@ const ExpenseDetails = () => {
     0
   );
 
-  const [isProcessing, setIsProcessing] = useState(false);
-
   const handleConfirmPayments = async () => {
     const output = Object.entries(selectedPayments).map(([id, v]) => ({
       expense_bill_id: id,
@@ -133,7 +149,16 @@ const ExpenseDetails = () => {
 
     setIsProcessing(true);
     const [, error] = await promiseResolver(
-      insertExpenseTransactions({ variables: { objects: output } })
+      insertExpenseTransactions({
+        variables: { objects: output },
+        onCompleted: () => {
+          client.cache.evict({
+            fieldName: "expense_categories",
+          });
+
+          client.cache.gc();
+        },
+      })
     );
     setIsProcessing(false);
     if (error) {
@@ -143,25 +168,6 @@ const ExpenseDetails = () => {
     setSelectedPayments({});
     if (typeof expenseRefetch === "function") expenseRefetch();
   };
-
-  // fetch employees for person filter
-  const { data: employeeData } = useQuery(FETCH_EMPLOYEES, {
-    variables: {
-      where: {
-        category: { _eq: expense.category },
-      },
-    },
-  });
-  const employees = employeeData?.expense_employees || [];
-
-  useEffect(() => {
-    if (!expenseData) return;
-
-    setExpenseTotal(
-      expenseData?.expense_expense_bills_aggregate?.aggregate?.sum || {}
-    );
-    setExpenses(expenseData?.expense_expense_bills_aggregate.nodes || []);
-  }, [expenseData]);
 
   // quick filter
   const applyQuickFilter = (mode) => {

@@ -169,6 +169,13 @@ const OpeningStock = () => {
       const [res, err] = await promiseResolver(
         insertUnLoading({
           variables: { object: customObject },
+          onCompleted: () => {
+            client.cache.evict({
+              fieldName: "expense_categories",
+            });
+
+            client.cache.gc();
+          },
         })
       );
       if (err) {
@@ -176,7 +183,7 @@ const OpeningStock = () => {
         return;
       }
       // refetch both queries to sync UI
-      await refetchOpeningData();
+      refetchOpeningData();
       setNewItem(initialItem);
       setIsModalOpen(false);
     } catch (e) {

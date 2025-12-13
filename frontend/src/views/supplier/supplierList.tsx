@@ -2,13 +2,14 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus } from "lucide-react";
 import { motion } from "framer-motion";
-import { useMutation, useQuery } from "@apollo/client/react";
+import { useApolloClient, useMutation, useQuery } from "@apollo/client/react";
 import { INSERT_SUPPLIER } from "../../graphql/mutation";
 import { FETCH_SUPPLIERS_AGGREGATE } from "../../graphql/query";
 import { useDebounce } from "../../utils/debounce";
 
 const SupplierDashboard = () => {
   const navigate = useNavigate();
+  const client = useApolloClient();
   const [supplierFromDatabase, setSuppliersFromDatabase] = useState([]);
   const [supplierFilter, setSupplierFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -36,7 +37,7 @@ const SupplierDashboard = () => {
   // fetch suppliers details
   const { error, data, loading } = useQuery(FETCH_SUPPLIERS_AGGREGATE, {
     variables: { whereSupplier },
-    fetchPolicy: "network-only",
+    // fetchPolicy: "network-only",
   });
   const supplierList = data?.supplier_supplier ?? [];
   // Clean state update (no infinite loop)
@@ -84,7 +85,13 @@ const SupplierDashboard = () => {
             type: newSupplier.type,
           },
         },
-        refetchQueries: [{ query: FETCH_SUPPLIERS_AGGREGATE }],
+        onCompleted: () => {
+          client.cache.evict({
+            fieldName: "supplier_supplier",
+          });
+
+          client.cache.gc();
+        },
       });
     } catch (err) {
       console.error("Insert Supplier Error:", err);

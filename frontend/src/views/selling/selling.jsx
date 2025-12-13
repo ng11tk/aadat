@@ -3,7 +3,6 @@ import SummaryModal from "./components/summary";
 import ItemCard from "./components/itemCard";
 import {
   FETCH_MODI_ITEMS,
-  FETCH_SALES,
   FIND_SALES_ORDERS,
   GET_BUYERS,
 } from "../../graphql/query";
@@ -196,14 +195,13 @@ const SalesDashboard = () => {
                 order_id: existingOrder.id,
               })),
             },
-            refetchQueries: [
-              {
-                query: FETCH_SALES,
-                variables: {
-                  where: { order_date: new Date().toISOString().split("T")[0] },
-                },
-              },
-            ],
+            onCompleted: () => {
+              client.cache.evict({
+                fieldName: "sales_sales_order",
+              });
+
+              client.cache.gc();
+            },
           });
           console.log("Sales order items updated:", insertItemsData);
         } catch (insertErr) {
@@ -220,16 +218,13 @@ const SalesDashboard = () => {
                   total_amount: previousTotal,
                 },
               },
-              refetchQueries: [
-                {
-                  query: FETCH_SALES,
-                  variables: {
-                    where: {
-                      order_date: new Date().toISOString().split("T")[0],
-                    },
-                  },
-                },
-              ],
+              onCompleted: () => {
+                client.cache.evict({
+                  fieldName: "sales_sales_order",
+                });
+
+                client.cache.gc();
+              },
             });
             console.log("Rollback successful:", rollbackData);
           } catch (rollbackErr) {
@@ -244,14 +239,13 @@ const SalesDashboard = () => {
       } else {
         const { data: insertData } = await upsertSalesOrder({
           variables: { object: payload },
-          refetchQueries: [
-            {
-              query: FETCH_SALES,
-              variables: {
-                where: { order_date: new Date().toISOString().split("T")[0] },
-              },
-            },
-          ],
+          onCompleted: () => {
+            client.cache.evict({
+              fieldName: "sales_sales_order",
+            });
+
+            client.cache.gc();
+          },
         });
         console.log("New sales order created:", insertData);
       }

@@ -265,7 +265,9 @@ export const GET_EXPENSE_CATEGORIES_AGGREGATE = gql`
 export const FETCH_EXPENSE_BILLS = gql`
   query FETCH_EXPENSE_BILLS(
     $where: expense_expense_bills_bool_exp = {}
-    $order_by: [expense_expense_bills_order_by!] = { date: desc_nulls_first }
+    $order_by: [expense_expense_bills_order_by!] = {
+      created_at: desc_nulls_first
+    }
   ) {
     expense_expense_bills_aggregate(order_by: $order_by, where: $where) {
       aggregate {

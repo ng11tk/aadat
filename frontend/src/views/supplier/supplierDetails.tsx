@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "react-router-dom";
 import { FETCH_SUPPLIER_DETAILS } from "../../graphql/query";
-import { useMutation, useQuery } from "@apollo/client/react";
+import { useApolloClient, useMutation, useQuery } from "@apollo/client/react";
 import { INSERT_SUPPLIER_TRANSACTION } from "../../graphql/mutation";
 import { promiseResolver } from "../../utils/promisResolver";
 
@@ -11,6 +11,7 @@ const formatDate = (date) => date.toISOString().split("T")[0];
 const SupplierDetails = () => {
   const today = new Date();
   const location = useLocation();
+  const client = useApolloClient();
   const suppliers = location.state?.supplier || {};
   const [supplier, setSupplier] = useState<any>({});
   const [selectedTransactions, setSelectedTransactions] = useState({});
@@ -46,13 +47,12 @@ const SupplierDetails = () => {
     error,
     data: { supplier_supplier: supplier_supplier = [] } = {},
     loading,
-    refetch,
   } = useQuery(FETCH_SUPPLIER_DETAILS, {
     variables: {
       where: { id: { _eq: suppliers.id } },
       whereSupplierUnloading: whereSupplierUnloadingsDetails,
     },
-    fetchPolicy: "network-only",
+    // fetchPolicy: "network-only",
   });
 
   // update supplier state when data changes
@@ -161,6 +161,13 @@ const SupplierDetails = () => {
     const [data, error] = await promiseResolver(
       insertSupplierTransactions({
         variables: { objects: output },
+        onCompleted: () => {
+          client.cache.evict({
+            fieldName: "supplier_supplier",
+          });
+
+          client.cache.gc();
+        },
       })
     );
     if (error) {
@@ -168,7 +175,6 @@ const SupplierDetails = () => {
       return;
     }
     setSelectedTransactions({});
-    refetch();
   };
 
   if (loading) {
