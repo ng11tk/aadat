@@ -1,17 +1,22 @@
 {
-  "name": "habit-tracker",
+  "name": "aadat",
   "version": "1.0.0",
-  "description": "habit tracker",
+  "description": "aadat application",
   "main": "index.js",
   "private": true,
   "workspaces": [
-    "frontend",
+    "client",
     "server"
   ],
   "scripts": {
-    "dev": "concurrently \"yarn workspace frontend dev\" \"yarn workspace server dev\"",
-    "start:frontend": "yarn workspace frontend start",
-    "start:server": "yarn workspace server start"
+    "dev": "concurrently \"yarn workspace client dev\" \"yarn workspace server dev\"",
+    "start:client": "yarn workspace client start",
+    "start:server": "yarn workspace server start",
+    "start": "concurrently \"yarn workspace client start\" \"yarn workspace server start\"",
+    "build:client": "yarn workspace client build",
+    "build:server": "yarn workspace server build",
+    "build": "yarn workspace client build && yarn workspace server build",
+    "clean": "rm -rf client/dist server/dist"
   },
   "author": "nitin",
   "license": "ISC",
