@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { AnimatePresence } from "framer-motion";
 import { Plus } from "lucide-react";
 import AddItemModal from "./components/AddItemModal";
-import ItemCard from "./components/ItemCard";
+import ItemCard from "./components/itemCard";
 import {
   INSERT_UNLOADING,
   UPDATE_UNLOADING_STATUS,

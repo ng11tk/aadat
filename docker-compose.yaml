@@ -1,0 +1,95 @@
+services:
+  postgres:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_DB: localdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - aadat-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  hasura:
+    image: hasura/graphql-engine:v2.40.0
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      HASURA_GRAPHQL_DATABASE_URL: postgres://postgres:postgres@postgres:5432/localdb
+      HASURA_GRAPHQL_ADMIN_SECRET: localadmin
+      HASURA_GRAPHQL_ENABLE_CONSOLE: "true"
+      HASURA_GRAPHQL_DEV_MODE: "true"
+      HASURA_GRAPHQL_ENABLED_LOG_TYPES: startup, http-log, webhook-log, websocket-log, query-log
+      HASURA_GRAPHQL_CORS_DOMAIN: "*"
+    volumes:
+      - ./hasura/metadata:/hasura-metadata
+      - ./hasura/migrations:/hasura-migrations
+    networks:
+      - aadat-network
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "timeout 1s bash -c 'cat < /dev/null > /dev/tcp/127.0.0.1/8080' || exit 1",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+      target: production
+    container_name: aadat-server
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      hasura:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      HASURA_GRAPHQL_ADMIN_SECRET: 4MzPVqUxP8NnDGpxZplbJ6KHY55sKHxcEjOHTyqCmkhljlVKUTCUP5gbJyULrVQ2
+      DATA_HUB: https://daily-progress.hasura.app/v1/graphql
+      JWT_ACCESS_TOKEN_SECRET_KEY: userpass
+      JWT_REFRESH_TOKEN_SECRET_KEY: userpass
+    networks:
+      - aadat-network
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.client
+      target: production
+      args:
+        VITE_HASURA_ADMIN_SECRET: 4MzPVqUxP8NnDGpxZplbJ6KHY55sKHxcEjOHTyqCmkhljlVKUTCUP5gbJyULrVQ2
+        VITE_HASURA_GRAPHQL_ENDPOINT: https://daily-progress.hasura.app/v1/graphql
+        VITE_API_URL: http://localhost:3000
+    container_name: aadat-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    depends_on:
+      - server
+    networks:
+      - aadat-network
+
+volumes:
+  postgres_data:
+
+networks:
+  aadat-network:
+    driver: bridge

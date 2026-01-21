@@ -12,9 +12,15 @@
   "dependencies": {
     "@apollo/client": "^4.0.7",
     "@tailwindcss/vite": "^4.1.17",
+    "axios": "^1.11.0",
+    "daisyui": "^5.1.6",
+    "framer-motion": "^12.18.0",
     "graphql": "^16.11.0",
+    "lucide-react": "^0.542.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "react-router-dom": "^7.9.5",
+    "rxjs": "^7.8.1",
     "tailwindcss": "^4.1.17"
   },
   "devDependencies": {
