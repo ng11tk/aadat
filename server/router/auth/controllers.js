@@ -28,7 +28,7 @@ const generateRefreshToken = (existingUser) => {
     process.env.JWT_REFRESH_TOKEN_SECRET_KEY,
     {
       expiresIn: "7d",
-    }
+    },
   );
 };
 
@@ -53,7 +53,7 @@ export const signup = async (req, res) => {
 
     // check if user already exists
     const [existingUser, existingUserError] = await promiseResolver(
-      gqlClient.request(GET_USER_BY_EMAIL, { email })
+      gqlClient.request(GET_USER_BY_EMAIL, { email }),
     );
 
     if (existingUserError) {
@@ -80,7 +80,7 @@ export const signup = async (req, res) => {
 
     // Insert the new user into the database
     const [insertResult, insertError] = await promiseResolver(
-      gqlClient.request(INSERT_USER, { object: insertData })
+      gqlClient.request(INSERT_USER, { object: insertData }),
     );
 
     if (insertError) {
@@ -144,7 +144,7 @@ export const login = async (req, res) => {
             user_id: existingUser.id,
           },
         ],
-      })
+      }),
     );
     if (error) {
       console.error("refresh token insert faild!", error);
@@ -175,26 +175,36 @@ export const check = async (req, res) => {
 
 // 🔹 Refresh Token (Rotation with DB)
 export const refreshToken = async (req, res) => {
-  console.log("open refresh tokk=en --------");
-
   const oldRefreshToken = req.cookies.refreshToken;
   if (!oldRefreshToken)
     return res.status(401).json({ message: "No refresh token" });
 
   try {
-    const decoded = jwt.verify(oldRefreshToken, JWT_REFRESH_TOKEN_SECRET_KEY);
+    const decoded = jwt.verify(
+      oldRefreshToken,
+      process.env.JWT_REFRESH_TOKEN_SECRET_KEY,
+    );
 
     // fetch token from db
-    const { user_login_token } = await gqlClient.request(GET_LOGIN_TOKENS, {
-      where: { user_id: { _eq: decoded.id } },
-      order_by: { created_at: "desc" }, // get most recent
-      limit: 1,
-    });
+    const [tokenData, tokenError] = await promiseResolver(
+      gqlClient.request(GET_LOGIN_TOKENS, {
+        where: { user_id: { _eq: decoded.id } },
+        order_by: [{ created_at: "desc" }],
+        limit: 1,
+      }),
+    );
+
+    if (tokenError) {
+      console.error("Error fetching login token:", tokenError);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+
+    const user_login_token = tokenData?.users_refresh_tokens;
 
     const storedToken = user_login_token?.[0]?.token; // latest token in DB
 
     if (!storedToken || storedToken !== oldRefreshToken) {
-      return res.status(403).json({ message: "Invalid refresh token" });
+      return res.status(401).json({ message: "Invalid refresh token" });
     }
 
     // Issue new tokens
@@ -211,11 +221,10 @@ export const refreshToken = async (req, res) => {
             user_id: decoded.id,
           },
         ],
-      })
+      }),
     );
-    console.log("new refresh tokk=en --------");
     if (error) {
-      console.error("refresh token insert faild!", error);
+      console.error("refresh token insert failed!", error);
       return res.status(500).json({ message: "Internal server error" });
     }
     // add the token to the cookies
@@ -228,9 +237,12 @@ export const refreshToken = async (req, res) => {
     res.cookie("accessToken", newAccessToken, cookieOptions);
     res.cookie("refreshToken", newRefreshToken, cookieOptions);
 
-    res.json({ message: "Token refreshed" });
-  } catch {
-    res.status(401).json({ message: "Invalid or expired refresh token" });
+    return res.json({ message: "Token refreshed" });
+  } catch (error) {
+    console.error("Refresh token error:", error);
+    return res
+      .status(401)
+      .json({ message: "Invalid or expired refresh token" });
   }
 };
 
@@ -244,7 +256,7 @@ export const logout = async (req, res) => {
     }
     const decodedObj = jwt.verify(
       authToken,
-      process.env.JWT_ACCESS_TOKEN_SECRET_KEY
+      process.env.JWT_ACCESS_TOKEN_SECRET_KEY,
     );
 
     // verify the user
@@ -252,7 +264,7 @@ export const logout = async (req, res) => {
     //? do we need this check
     const [{ users_user_by_pk: existingUser = {} }, existingUserError] =
       await promiseResolver(
-        gqlClient.request(GET_USER_BY_EMAIL, { email: decodedObj.email })
+        gqlClient.request(GET_USER_BY_EMAIL, { email: decodedObj.email }),
       );
     if (existingUserError) {
       console.error("Error checking existing user:", existingUserError);
@@ -265,7 +277,7 @@ export const logout = async (req, res) => {
     const [insertResult, insertError] = await promiseResolver(
       gqlClient.request(DELETE_LOGIN_TOKEN, {
         where: { user_id: { _eq: decodedObj.id } },
-      })
+      }),
     );
 
     if (insertError) {
