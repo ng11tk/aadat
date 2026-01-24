@@ -3,7 +3,7 @@ import { Navigate } from "react-router-dom";
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "http://localhost:3000/server/api/auth", // match backend
+  baseURL: "http://localhost:3000/server/auth", // match backend
   withCredentials: true,
 });
 

@@ -9,7 +9,7 @@ const Navbar = () => {
 
   const handleLogout = async () => {
     await axios.post(
-      "http://localhost:3000/server/api/auth/logout",
+      "http://localhost:3000/server/auth/logout",
       {},
       { withCredentials: true }
     );

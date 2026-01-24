@@ -1,9 +1,15 @@
-import { Router } from 'express';
-import { authRouter } from './auth/route.js';
-const serverRouter = Router();
+import { Router } from "express";
+import { authRouter } from "./auth/route.js";
+import protectedRoute from "../middleware/protectedRoute.js";
+
+const serverPublicRouter = Router();
+const serverPrivateRouter = Router();
+
+serverPrivateRouter.use(protectedRoute);
 
 // Use the authentication routes
-serverRouter.use('/api/auth', authRouter);
+serverPublicRouter.use("/auth", authRouter);
+// serverPublicRouter.use("/auth", authPublicRouter);
 
 // Export the main serverRouter
-export { serverRouter};
+export { serverPublicRouter, serverPrivateRouter };
