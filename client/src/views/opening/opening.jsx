@@ -3,10 +3,9 @@ import { AnimatePresence } from "framer-motion";
 import { Plus } from "lucide-react";
 import AddItemModal from "./components/AddItemModal";
 import ItemCard from "./components/itemCard";
-import { UPDATE_UNLOADING_STATUS } from "../../graphql/mutation";
 import { promiseResolver } from "../../utils/promisResolver";
 import { GET_ALL_OPENING_UNLOADING } from "../../graphql/query";
-import { useApolloClient, useMutation, useQuery } from "@apollo/client/react"; // <- fixed import
+import { useApolloClient, useQuery } from "@apollo/client/react"; // <- fixed import
 import api from "../../lib/axios";
 
 const initialItem = {
@@ -37,14 +36,10 @@ const initialItem = {
 
 const OpeningStock = () => {
   const client = useApolloClient();
-
   const [incomingItems, setIncomingItems] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newItem, setNewItem] = useState(initialItem);
   const [insertUnloadingLoading, setInsertUnloadingLoading] = useState(false);
-
-  // mutations
-  const [updateUnloadingStatus] = useMutation(UPDATE_UNLOADING_STATUS);
 
   // queries
   const {
@@ -121,20 +116,10 @@ const OpeningStock = () => {
       const itemToClose = incomingItems.find((item) => item.id === id);
       if (!itemToClose) return;
 
-      // 1) Update unloading status to closed
+      // update unloading isDayClose status
       const [updRes, updErr] = await promiseResolver(
-        updateUnloadingStatus({
-          variables: {
-            pk_columns: { id },
-            isDayClose: !itemToClose.isDayClose,
-          },
-          onCompleted: () => {
-            client.cache.evict({
-              fieldName: "opening_unloading",
-            });
-
-            client.cache.gc(); // cleanup orphaned fields
-          },
+        api.put(`/api/v1/opening/unloading/update/${id}`, {
+          isDayClose: !itemToClose.isDayClose,
         }),
       );
 
@@ -142,6 +127,12 @@ const OpeningStock = () => {
         console.error("🚀 ~ handleCloseItems ~ update error:", updErr);
         return;
       }
+
+      // success: evict cache and refetch
+      client.cache.evict({
+        fieldName: "opening_unloading",
+      });
+      client.cache.gc(); // cleanup orphaned fields
     } catch (err) {
       console.error("🚀 ~ handleCloseItems ~ exception:", err);
     }

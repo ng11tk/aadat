@@ -1,4 +1,7 @@
-import { INSERT_OPENING } from "../../../graphql/mutation.js";
+import {
+  INSERT_OPENING,
+  UPDATE_UNLOADING_STATUS,
+} from "../../../graphql/mutation.js";
 import { gqlClient } from "../../../lib/graphql.js";
 import { promiseResolver } from "../../../utils/promisResolver.js";
 
@@ -116,5 +119,41 @@ export const createUnloading = async (req, res) => {
   } catch (error) {
     console.error("Unexpected error in createUnloading:", error);
     return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const updateUnloadingStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { isDayClose } = req.body;
+
+    // Validate required fields
+    if (!id || isDayClose === undefined) {
+      return res.status(400).json({ message: "Invalid request data" });
+    }
+
+    const [data, err] = await promiseResolver(
+      gqlClient.request(UPDATE_UNLOADING_STATUS, {
+        pk_columns: { id },
+        isDayClose,
+      }),
+    );
+
+    if (err) {
+      console.error("Error updating unloading status:", err);
+      return res
+        .status(500)
+        .json({ message: "Failed to update unloading status" });
+    }
+
+    return res.status(200).json({
+      message: `Unloading status updated successfully`,
+      data,
+    });
+  } catch (error) {
+    console.error("Unexpected error in updateUnloadingStatus:", error);
+    return res
+      .status(500)
+      .json({ message: "Failed to update unloading status" });
   }
 };

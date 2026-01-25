@@ -1,19 +1,5 @@
 import { gql } from "@apollo/client";
 
-export const UPDATE_UNLOADING_STATUS = gql`
-  mutation UPDATE_UNLOADING_STATUS(
-    $pk_columns: opening_unloading_pk_columns_input = { id: "" }
-    $isDayClose: Boolean = false
-  ) {
-    update_opening_unloading_by_pk(
-      pk_columns: $pk_columns
-      _set: { isDayClose: $isDayClose }
-    ) {
-      id
-    }
-  }
-`;
-
 export const INSERT_SUPPLIER = gql`
   mutation INSERT_SUPPLIER($object: supplier_supplier_insert_input = {}) {
     insert_supplier_supplier_one(object: $object) {
