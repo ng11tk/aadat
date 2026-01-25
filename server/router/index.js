@@ -1,15 +1,20 @@
 import { Router } from "express";
 import { authRouter } from "./auth/route.js";
 import protectedRoute from "../middleware/protectedRoute.js";
+import { openingPublicRouter, openingPrivateRouter } from "./opening/index.js";
 
 const serverPublicRouter = Router();
 const serverPrivateRouter = Router();
 
+// Apply protectedRoute middleware to all private routes
 serverPrivateRouter.use(protectedRoute);
 
 // Use the authentication routes
 serverPublicRouter.use("/auth", authRouter);
-// serverPublicRouter.use("/auth", authPublicRouter);
+
+// opening routes
+serverPublicRouter.use("/api/v1/opening", openingPublicRouter);
+serverPrivateRouter.use("/api/v1/opening", openingPrivateRouter);
 
 // Export the main serverRouter
 export { serverPublicRouter, serverPrivateRouter };

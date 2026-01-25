@@ -1,13 +1,12 @@
 import jwt from "jsonwebtoken";
-import validate from "validator";
-import { gqlClient } from "../lib/graphql.js";
-import { promiseResolver } from "../utils/promisResolver.js";
-import { GET_USER_BY_EMAIL } from "../graphql/query.js";
+import dotenv from "dotenv";
+dotenv.config();
 
 /**
  * Middleware to protect routes that require authentication
  * Verifies JWT token from cookies and attaches user to request
  */
+
 const protectedRoute = async (req, res, next) => {
   try {
     // Get token from cookies
@@ -22,27 +21,16 @@ const protectedRoute = async (req, res, next) => {
 
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_ACCESS_TOKEN_SECRET_KEY);
+    // this verify both user existence and token validity
+    if (!decoded) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid token.",
+      });
+    }
 
     // Find user by id from token
-    // validate user data
-    if (!validate.isEmail(decoded.email)) {
-      return res.status(401).json({ message: "Email is not valid!" });
-    }
-
-    // check user in database
-    const [{ users_user_by_pk: existingUser = {} }, existingUserError] =
-      await promiseResolver(
-        gqlClient.request(GET_USER_BY_EMAIL, { email: decoded.email }),
-      );
-
-    if (existingUserError || !existingUser) {
-      console.error("Error checking existing user:", existingUserError);
-      return res
-        .status(401)
-        .json({ message: "User not found. Invalid token." });
-    }
-
-    const user = existingUser;
+    const user = decoded;
     // Attach user to request object
     req.user = user;
 
