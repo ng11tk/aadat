@@ -3,13 +3,11 @@ import { AnimatePresence } from "framer-motion";
 import { Plus } from "lucide-react";
 import AddItemModal from "./components/AddItemModal";
 import ItemCard from "./components/itemCard";
-import {
-  INSERT_UNLOADING,
-  UPDATE_UNLOADING_STATUS,
-} from "../../graphql/mutation";
+import { UPDATE_UNLOADING_STATUS } from "../../graphql/mutation";
 import { promiseResolver } from "../../utils/promisResolver";
 import { GET_ALL_OPENING_UNLOADING } from "../../graphql/query";
 import { useApolloClient, useMutation, useQuery } from "@apollo/client/react"; // <- fixed import
+import api from "../../lib/axios";
 
 const initialItem = {
   type: "supplier",
@@ -43,10 +41,9 @@ const OpeningStock = () => {
   const [incomingItems, setIncomingItems] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newItem, setNewItem] = useState(initialItem);
+  const [insertUnloadingLoading, setInsertUnloadingLoading] = useState(false);
 
   // mutations
-  const [insertUnLoading, { loading: insertUnloadingLoading }] =
-    useMutation(INSERT_UNLOADING);
   const [updateUnloadingStatus] = useMutation(UPDATE_UNLOADING_STATUS);
 
   // queries
@@ -83,111 +80,32 @@ const OpeningStock = () => {
     )
       return;
 
-    const totalKharcha = Object.values(newItem.kharcha_details).reduce(
-      (sum, val) => sum + (Number(val) || 0),
-      0
-    );
-
-    const itemsTotalAmount = newItem.unloading_items.reduce(
-      (sum, it) => sum + (Number(it.rate) || 0) * (Number(it.quantity) || 0),
-      0
-    );
-
-    const item = {
-      ...newItem,
-      amount_paid: Number(newItem.amount_paid) || 0,
-      advance: Number(newItem.advance) || 0,
-      unloading_items: newItem.unloading_items.map((it) => ({
-        ...it,
-        rate: Number(it.rate) || 0,
-        quantity: Number(it.quantity) || 0,
-        remaining_quantity: Number(it.quantity) || 0,
-      })),
-      kharcha_details: {
-        commission: Number(newItem.kharcha_details.commission) || 0,
-        labour: Number(newItem.kharcha_details.labour) || 0,
-        market: Number(newItem.kharcha_details.market) || 0,
-        driver_gift: Number(newItem.kharcha_details.driver_gift) || 0,
-      },
-    };
-
-    const customObject = {
-      type: item.type,
-      name: item.name,
-      amount: totalKharcha + itemsTotalAmount,
-      advance_amount: item.advance,
-      bhada_details: {
-        bhada: Number(item.bhada) || 0,
-        vehicle_number: item.vehicle_number,
-      },
-      kharcha_details: item.kharcha_details,
-      unloading_date: new Date().toISOString().split("T")[0],
-      isDayClose: true,
-      unloading_items: {
-        data: item.unloading_items.map((it) => ({
-          name: it.name,
-          rate: it.rate,
-          quantity: it.quantity,
-          remaining_quantity: it.quantity,
-          unit: it.unit,
-          isSellable: it.isSellable,
-        })),
-      },
-      supplier_unloading: {
-        data: {
-          supplier_name: item.name,
-          amount: totalKharcha + itemsTotalAmount,
-          remaining_amount: totalKharcha + itemsTotalAmount - item.advance,
-          payment_status:
-            totalKharcha + itemsTotalAmount - item.advance <= 0
-              ? "paid"
-              : "partial",
-          unloading_date: new Date().toISOString().split("T")[0],
-          advance_amount: item.advance,
-        },
-      },
-      expense_bills: {
-        data: {
-          category: "Bhada",
-          advance: 0,
-          amount: Number(item.bhada) || 0,
-          remaining_amount: Number(item.bhada) || 0,
-          payment_status: "partial",
-          bhada_details: {
-            vehicle: item.vehicle_number,
-            modi: item.name,
-            item: Array.isArray(item.unloading_items)
-              ? item.unloading_items.map((i) => i.name)
-              : [],
-          },
-          date: new Date().toISOString().split("T")[0],
-        },
-      },
-    };
-
+    setInsertUnloadingLoading(true);
     try {
-      const [res, err] = await promiseResolver(
-        insertUnLoading({
-          variables: { object: customObject },
-          onCompleted: () => {
-            client.cache.evict({
-              fieldName: "expense_categories",
-            });
-
-            client.cache.gc();
-          },
-        })
+      const [resOpening, errOpening] = await promiseResolver(
+        api.post("/api/v1/opening/unloading/create", newItem),
       );
-      if (err) {
-        console.error("🚀 ~ handleAddItem ~ error:", err);
+
+      if (errOpening) {
+        console.error("🚀 ~ handleAddItem ~ insertion error:", errOpening);
+        setInsertUnloadingLoading(false);
         return;
       }
+
+      // success and use cache eviction
+      client.cache.evict({
+        fieldName: "opening_unloading",
+      });
+      client.cache.gc();
+
       // refetch both queries to sync UI
       refetchOpeningData();
       setNewItem(initialItem);
       setIsModalOpen(false);
     } catch (e) {
       console.error("🚀 ~ handleAddItem ~ exception:", e);
+    } finally {
+      setInsertUnloadingLoading(false);
     }
   };
 
@@ -217,7 +135,7 @@ const OpeningStock = () => {
 
             client.cache.gc(); // cleanup orphaned fields
           },
-        })
+        }),
       );
 
       if (updErr) {
@@ -235,7 +153,7 @@ const OpeningStock = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-indigo-100 p-8">
+    <div className="min-h-screen bg-linear-to-br from-indigo-50 via-white to-indigo-100 p-8">
       {/* Header */}
       <div className="flex justify-between items-center mb-10">
         <h1 className="text-4xl font-extrabold text-gray-800 tracking-tight">

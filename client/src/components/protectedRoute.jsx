@@ -8,7 +8,7 @@ const ProtectedRoute = ({ children }) => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        await api.post("/check");
+        await api.post("/auth/check");
         setIsAuthenticated(true);
       } catch (err) {
         console.error("🚀 ~ checkAuth ~ err:", err);

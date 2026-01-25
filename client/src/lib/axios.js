@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "http://localhost:3000/server/auth", // match backend
+  baseURL: "http://localhost:3000/server", // match backend
   withCredentials: true,
 });
 
@@ -14,13 +14,13 @@ api.interceptors.response.use(
     if (
       error.response?.status === 401 &&
       !originalRequest._retry &&
-      !originalRequest.url?.includes("/refresh")
+      !originalRequest.url?.includes("/auth/refresh")
     ) {
       originalRequest._retry = true;
       try {
         // attempt refresh
         console.log("refresh token attempt.");
-        await api.post("/refresh", {});
+        await api.post("/auth/refresh", {});
         // retry original request
         return api(originalRequest);
       } catch (err) {

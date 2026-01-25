@@ -1,13 +1,5 @@
 import { gql } from "@apollo/client";
 
-export const INSERT_UNLOADING = gql`
-  mutation INSERT_UNLOADING($object: opening_unloading_insert_input!) {
-    insert_opening_unloading_one(object: $object) {
-      id
-    }
-  }
-`;
-
 export const UPDATE_UNLOADING_STATUS = gql`
   mutation UPDATE_UNLOADING_STATUS(
     $pk_columns: opening_unloading_pk_columns_input = { id: "" }

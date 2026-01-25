@@ -26,3 +26,11 @@ mutation DELETE_LOGIN_TOKEN($where: users_refresh_tokens_bool_exp = {}) {
   }
 }
 `;
+
+export const INSERT_OPENING = `
+   mutation INSERT_UNLOADING($object: opening_unloading_insert_input!) {
+    insert_opening_unloading_one(object: $object) {
+      id
+    }
+  }
+`;
