@@ -1,21 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import SummaryModal from "./components/summary";
 import ItemCard from "./components/itemCard";
-import {
-  FETCH_MODI_ITEMS,
-  FIND_SALES_ORDERS,
-  GET_BUYERS,
-} from "../../graphql/query";
-import {
-  useMutation,
-  useQuery,
-  useLazyQuery,
-  useApolloClient,
-} from "@apollo/client/react";
-import {
-  INSERT_SALES_ORDER_ITEMS,
-  UPSERT_SALES_ORDER,
-} from "../../graphql/mutation";
+import { FETCH_MODI_ITEMS, GET_BUYERS } from "../../graphql/query";
+import { useQuery } from "@apollo/client/react";
+import { promiseResolver } from "../../utils/promisResolver";
+import api from "../../lib/axios";
 
 const SalesDashboard = () => {
   const [modiList, setModiList] = useState([]);
@@ -78,7 +67,7 @@ const SalesDashboard = () => {
         }
 
         return acc;
-      }, {})
+      }, {}),
     );
 
     const formatted = mergedByName.map((m) => ({
@@ -90,20 +79,13 @@ const SalesDashboard = () => {
     setModiList(formatted);
   }, [modiData]);
 
-  // Apollo client for imperative queries (used to always fetch fresh data)
-  const client = useApolloClient();
-
-  // mutations
-  const [upsertSalesOrder] = useMutation(UPSERT_SALES_ORDER);
-  const [insertSalesOrderItems] = useMutation(INSERT_SALES_ORDER_ITEMS);
-
   const totalAmount = useMemo(
     () =>
       addedItems.reduce(
         (sum, it) => sum + (it.weight || 0) * (it.qty || 0) * (it.rate || 0),
-        0
+        0,
       ),
-    [addedItems]
+    [addedItems],
   );
 
   const handleAddItem = (payload) => {
@@ -113,7 +95,7 @@ const SalesDashboard = () => {
           p.unloading_id === payload.unloading_id &&
           p.item_id === payload.item_id &&
           p.item_name === payload.item_name &&
-          Number(p.rate) === Number(payload.rate)
+          Number(p.rate) === Number(payload.rate),
       );
       if (idx >= 0) {
         const next = [...prev];
@@ -154,104 +136,13 @@ const SalesDashboard = () => {
     };
     console.log("✔ Submit Payload", payload);
 
-    //todo: move this to backend as a transaction
-    try {
-      const { data: existingOrdersData } = await client.query({
-        query: FIND_SALES_ORDERS,
-        variables: {
-          where: {
-            buyer_id: { _eq: selectedBuyer },
-            order_date: { _eq: new Date().toISOString().split("T")[0] },
-          },
-        },
-        fetchPolicy: "network-only",
-      });
-      const existingOrder = existingOrdersData?.sales_sales_order?.[0] || false;
-
-      if (existingOrder) {
-        // Save previous total to allow rollback if item insertion fails
-        const previousTotal = existingOrder.total_amount || 0;
-        const updatedTotal = previousTotal + totalAmount;
-
-        // Update the sales order total first
-        const { data: updateData } = await upsertSalesOrder({
-          variables: {
-            object: {
-              id: existingOrder.id,
-              buyer_id: payload.buyer_id,
-              total_amount: updatedTotal,
-              order_date: payload.order_date,
-              items_missing_rate_count: payload.items_missing_rate_count,
-            },
-          },
-        });
-        console.log("Sales order total updated:", updateData);
-        // Then insert the new items. If this fails, attempt to rollback the total_amount.
-        try {
-          const { data: insertItemsData } = await insertSalesOrderItems({
-            variables: {
-              objects: payload.sales_order_items.data.map((it) => ({
-                ...it,
-                order_id: existingOrder.id,
-              })),
-            },
-            onCompleted: () => {
-              client.cache.evict({
-                fieldName: "sales_sales_order",
-              });
-
-              client.cache.gc();
-            },
-          });
-          console.log("Sales order items updated:", insertItemsData);
-        } catch (insertErr) {
-          console.error(
-            "Failed to insert sales order items, attempting rollback:",
-            insertErr
-          );
-          try {
-            // Rollback total_amount to previous value
-            const { data: rollbackData } = await upsertSalesOrder({
-              variables: {
-                object: {
-                  id: existingOrder.id,
-                  total_amount: previousTotal,
-                },
-              },
-              onCompleted: () => {
-                client.cache.evict({
-                  fieldName: "sales_sales_order",
-                });
-
-                client.cache.gc();
-              },
-            });
-            console.log("Rollback successful:", rollbackData);
-          } catch (rollbackErr) {
-            console.error("Rollback failed:", rollbackErr);
-          }
-
-          // Surface error to user and stop submission
-          return alert(
-            "Failed to add order items. The order has been rolled back (or rollback attempted). Check console."
-          );
-        }
-      } else {
-        const { data: insertData } = await upsertSalesOrder({
-          variables: { object: payload },
-          onCompleted: () => {
-            client.cache.evict({
-              fieldName: "sales_sales_order",
-            });
-
-            client.cache.gc();
-          },
-        });
-        console.log("New sales order created:", insertData);
-      }
-    } catch (err) {
-      console.error("Error finding or creating sales order:", err);
-      return alert("Error finding existing sales orders.");
+    // call API to create sales order
+    const [res, err] = await promiseResolver(
+      api.post("/api/v1/sales/orders", payload),
+    );
+    if (err) {
+      console.error("❌ Error creating sales order:", err);
+      return alert("Failed to create sales order. Check console.");
     }
 
     alert("Submitted. Check console.");

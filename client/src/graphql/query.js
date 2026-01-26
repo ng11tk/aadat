@@ -170,16 +170,6 @@ export const FETCH_MODI_ITEMS = gql`
   }
 `;
 
-export const FIND_SALES_ORDERS = gql`
-  query FIND_SALES_ORDERS($where: sales_sales_order_bool_exp = {}) {
-    sales_sales_order(where: $where) {
-      id
-      total_amount
-      items_missing_rate_count
-    }
-  }
-`;
-
 export const FETCH_BUYERS_LIST = gql`
   query FETCH_BUYERS_LIST($whereBuyer: buyer_buyers_bool_exp = {}) {
     buyer_buyers(

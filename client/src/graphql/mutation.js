@@ -26,21 +26,6 @@ export const INSERT_BUYER = gql`
   }
 `;
 
-export const UPSERT_SALES_ORDER = gql`
-  mutation UPSERT_SALES_ORDER($object: sales_sales_order_insert_input = {}) {
-    insert_sales_sales_order_one(
-      object: $object
-      on_conflict: {
-        constraint: sales_order_buyer_id_order_date_key
-        update_columns: total_amount
-      }
-    ) {
-      id
-      total_amount
-    }
-  }
-`;
-
 export const INSERT_SALES_ORDER_ITEMS = gql`
   mutation INSERT_SALES_ORDER_ITEMS(
     $objects: [sales_sales_order_item_insert_input!] = {}

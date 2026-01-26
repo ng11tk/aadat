@@ -123,7 +123,6 @@ export const updateUnloading = async (req, res) => {
   try {
     const { id } = req.params;
     const updateData = req.body;
-    console.log("🚀 ~ updateUnloading ~ updateData:", updateData);
 
     // Validate required fields
     if (!id || updateData == null) {
