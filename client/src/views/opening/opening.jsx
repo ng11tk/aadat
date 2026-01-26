@@ -78,7 +78,7 @@ const OpeningStock = () => {
     setInsertUnloadingLoading(true);
     try {
       const [resOpening, errOpening] = await promiseResolver(
-        api.post("/api/v1/opening/unloading/create", newItem),
+        api.post("/api/v1/opening/unloading", newItem),
       );
 
       if (errOpening) {
@@ -118,7 +118,7 @@ const OpeningStock = () => {
 
       // update unloading isDayClose status
       const [updRes, updErr] = await promiseResolver(
-        api.put(`/api/v1/opening/unloading/update/${id}`, {
+        api.put(`/api/v1/opening/unloading/${id}`, {
           isDayClose: !itemToClose.isDayClose,
         }),
       );

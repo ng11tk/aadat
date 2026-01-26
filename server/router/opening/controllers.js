@@ -1,9 +1,6 @@
-import {
-  INSERT_OPENING,
-  UPDATE_UNLOADING_STATUS,
-} from "../../../graphql/mutation.js";
-import { gqlClient } from "../../../lib/graphql.js";
-import { promiseResolver } from "../../../utils/promisResolver.js";
+import { INSERT_OPENING, UPDATE_UNLOADING } from "../../graphql/mutation.js";
+import { gqlClient } from "../../lib/graphql.js";
+import { promiseResolver } from "../../utils/promisResolver.js";
 
 export const createUnloading = async (req, res) => {
   try {
@@ -122,20 +119,21 @@ export const createUnloading = async (req, res) => {
   }
 };
 
-export const updateUnloadingStatus = async (req, res) => {
+export const updateUnloading = async (req, res) => {
   try {
     const { id } = req.params;
-    const { isDayClose } = req.body;
+    const updateData = req.body;
+    console.log("🚀 ~ updateUnloading ~ updateData:", updateData);
 
     // Validate required fields
-    if (!id || isDayClose === undefined) {
+    if (!id || updateData == null) {
       return res.status(400).json({ message: "Invalid request data" });
     }
 
     const [data, err] = await promiseResolver(
-      gqlClient.request(UPDATE_UNLOADING_STATUS, {
+      gqlClient.request(UPDATE_UNLOADING, {
         pk_columns: { id },
-        isDayClose,
+        _set: updateData,
       }),
     );
 

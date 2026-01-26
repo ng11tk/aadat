@@ -35,16 +35,10 @@ export const INSERT_OPENING = `
   }
 `;
 
-export const UPDATE_UNLOADING_STATUS = `
-  mutation UPDATE_UNLOADING_STATUS(
-    $pk_columns: opening_unloading_pk_columns_input = { id: "" }
-    $isDayClose: Boolean = false
-  ) {
-    update_opening_unloading_by_pk(
-      pk_columns: $pk_columns
-      _set: { isDayClose: $isDayClose }
-    ) {
-      id
-    }
+export const UPDATE_UNLOADING = `
+  mutation UPDATE_UNLOADING($pk_columns: opening_unloading_pk_columns_input = {id: ""},  $_set: opening_unloading_set_input = {}) {
+  update_opening_unloading_by_pk(pk_columns: $pk_columns, _set: $_set) {
+    id
   }
+}
 `;
