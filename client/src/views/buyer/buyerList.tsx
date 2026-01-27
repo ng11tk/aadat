@@ -68,7 +68,7 @@ const BuyerDashboard = () => {
 
     // backend api for inserting buyer
     const [res, err] = await promiseResolver(
-      api.post("/api/v1/buyer/create", {
+      api.post("/api/v1/buyers/buyer", {
         name: newBuyer.name,
         phone: digits,
       }),

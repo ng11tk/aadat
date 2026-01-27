@@ -140,7 +140,7 @@ const BuyerDetails = () => {
     }
 
     const [data, error] = await promiseResolver(
-      api.post("/api/v1/buyer/transaction", { selectedTransactions }),
+      api.post("/api/v1/buyers/buyer/transactions", { selectedTransactions }),
     );
 
     if (error) {

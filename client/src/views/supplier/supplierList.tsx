@@ -2,10 +2,11 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus } from "lucide-react";
 import { motion } from "framer-motion";
-import { useApolloClient, useMutation, useQuery } from "@apollo/client/react";
-import { INSERT_SUPPLIER } from "../../graphql/mutation";
+import { useApolloClient, useQuery } from "@apollo/client/react";
 import { FETCH_SUPPLIERS_AGGREGATE } from "../../graphql/query";
 import { useDebounce } from "../../utils/debounce";
+import api from "../../lib/axios";
+import { promiseResolver } from "../../utils/promisResolver";
 
 const SupplierDashboard = () => {
   const navigate = useNavigate();
@@ -21,6 +22,7 @@ const SupplierDashboard = () => {
     type: "supplier",
   });
   const [errors, setErrors] = useState({ contact: "" });
+  const [insertSupplierLoading, setInsertSupplierLoading] = useState(false);
 
   const debouncedSupplierFilter = useDebounce(supplierFilter, 400);
 
@@ -56,15 +58,12 @@ const SupplierDashboard = () => {
     setSuppliersFromDatabase(formatted);
   }, [data]);
 
-  // Insert supplier
-  const [insertSupplier, { loading: insertSupplierLoading }] =
-    useMutation(INSERT_SUPPLIER);
-
   const handleSaveSupplier = async () => {
     // final validation
     const digits = (newSupplier.contact || "").replace(/\D/g, "");
+
     if (!newSupplier.supplier) {
-      return; // name required (UI already prevents empty save)
+      return;
     }
     if (!digits) {
       setErrors((s) => ({ ...s, contact: "Contact is required" }));
@@ -75,27 +74,39 @@ const SupplierDashboard = () => {
       return;
     }
 
-    try {
-      await insertSupplier({
-        variables: {
-          object: {
-            name: newSupplier.supplier,
-            // send digits-only phone string so backend can accept either text or numeric
-            phone: digits,
-            type: newSupplier.type,
-          },
-        },
-        onCompleted: () => {
-          client.cache.evict({
-            fieldName: "supplier_supplier",
-          });
+    const customObject = {
+      name: newSupplier.supplier,
+      phone: digits,
+      type: newSupplier.type,
+    };
 
-          client.cache.gc();
-        },
-      });
+    setInsertSupplierLoading(true);
+
+    try {
+      const [res, err] = await promiseResolver(
+        api.post("/api/v1/suppliers/supplier", {
+          customObject,
+        }),
+      );
+      if (err) {
+        console.error("Insert Supplier API Error:", err);
+        setInsertSupplierLoading(false);
+        return;
+      }
     } catch (err) {
       console.error("Insert Supplier Error:", err);
+      setInsertSupplierLoading(false);
+      return;
     }
+
+    setInsertSupplierLoading(false);
+
+    // cache eviction to refetch suppliers
+    client.cache.evict({
+      fieldName: "supplier_supplier",
+    });
+
+    client.cache.gc();
 
     setNewSupplier({ supplier: "", contact: "", type: "supplier" });
     setIsModalOpen(false);
@@ -105,7 +116,7 @@ const SupplierDashboard = () => {
   const totalAmount = supplierFromDatabase.reduce((sum, s) => sum + s.total, 0);
   const totalPaid = supplierFromDatabase.reduce(
     (sum, s) => sum + (s.total - s.paid),
-    0
+    0,
   );
   const totalDue = totalAmount - totalPaid;
 
@@ -226,8 +237,8 @@ const SupplierDashboard = () => {
                 status === "paid"
                   ? "bg-indigo-50 border-indigo-200"
                   : status === "partial"
-                  ? "bg-orange-50 border-orange-200"
-                  : "bg-red-50 border-red-200"
+                    ? "bg-orange-50 border-orange-200"
+                    : "bg-red-50 border-red-200"
               }`}
               onClick={() =>
                 navigate(`/suppliers/${encodeURIComponent(p.supplier)}`, {
@@ -244,8 +255,8 @@ const SupplierDashboard = () => {
                     status === "paid"
                       ? "badge-primary"
                       : status === "partial"
-                      ? "badge-warning"
-                      : "badge-error"
+                        ? "badge-warning"
+                        : "badge-error"
                   }`}
                 >
                   {status.toUpperCase()}

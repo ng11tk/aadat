@@ -2,9 +2,9 @@ import React, { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "react-router-dom";
 import { FETCH_SUPPLIER_DETAILS } from "../../graphql/query";
-import { useApolloClient, useMutation, useQuery } from "@apollo/client/react";
-import { INSERT_SUPPLIER_TRANSACTION } from "../../graphql/mutation";
+import { useApolloClient, useQuery } from "@apollo/client/react";
 import { promiseResolver } from "../../utils/promisResolver";
+import api from "../../lib/axios";
 
 const formatDate = (date) => date.toISOString().split("T")[0];
 
@@ -19,7 +19,7 @@ const SupplierDetails = () => {
   const [filterMode, setFilterMode] = useState("thisMonth");
   const [statusFilter, setStatusFilter] = useState("all"); // ✅ new filter
   const [fromDate, setFromDate] = useState(
-    formatDate(new Date(today.getFullYear(), today.getMonth(), 1))
+    formatDate(new Date(today.getFullYear(), today.getMonth(), 1)),
   );
   const [toDate, setToDate] = useState(formatDate(today));
 
@@ -37,9 +37,6 @@ const SupplierDetails = () => {
 
     return w;
   }, [fromDate, toDate]);
-
-  //* mutations
-  const [insertSupplierTransactions] = useMutation(INSERT_SUPPLIER_TRANSACTION);
 
   //* fetch
   // supplier details
@@ -103,7 +100,7 @@ const SupplierDetails = () => {
       setToDate(formatDate(today));
     } else if (mode === "thisMonth") {
       setFromDate(
-        formatDate(new Date(today.getFullYear(), today.getMonth(), 1))
+        formatDate(new Date(today.getFullYear(), today.getMonth(), 1)),
       );
       setToDate(formatDate(today));
     }
@@ -138,7 +135,7 @@ const SupplierDetails = () => {
 
   const totalSelectedAmount = Object.values(selectedTransactions).reduce(
     (sum: number, t: any) => sum + (t.amount || 0),
-    0
+    0,
   );
 
   const savePartial = (id: any, amount: any, due: any) => {
@@ -154,26 +151,24 @@ const SupplierDetails = () => {
   };
 
   const handleUpdateSupplierPayments = async () => {
-    const output = Object.entries(selectedTransactions).map(([id, value]) => {
-      return { supplier_unloading_id: id, amount: value.amount };
-    });
+    if (Object.keys(selectedTransactions).length === 0) return;
 
-    const [data, error] = await promiseResolver(
-      insertSupplierTransactions({
-        variables: { objects: output },
-        onCompleted: () => {
-          client.cache.evict({
-            fieldName: "supplier_supplier",
-          });
-
-          client.cache.gc();
-        },
-      })
+    const [res, err] = await promiseResolver(
+      api.post("/api/v1/suppliers/supplier/transactions", {
+        selectedTransactions,
+      }),
     );
-    if (error) {
-      console.error("Error inserting supplier transactions:", error);
+    if (err) {
+      alert("Error updating payments. Please try again.");
       return;
     }
+
+    // Refresh supplier details
+    client.cache.evict({
+      fieldName: "supplier_supplier",
+    });
+
+    client.cache.gc();
     setSelectedTransactions({});
   };
 
@@ -226,10 +221,10 @@ const SupplierDetails = () => {
               {mode === "today"
                 ? "Today"
                 : mode === "thisWeek"
-                ? "This Week"
-                : mode === "thisMonth"
-                ? "This Month"
-                : "Custom"}
+                  ? "This Week"
+                  : mode === "thisMonth"
+                    ? "This Month"
+                    : "Custom"}
             </button>
           ))}
         </div>
@@ -263,8 +258,8 @@ const SupplierDetails = () => {
                   ? status === "paid"
                     ? "bg-indigo-600 text-white border-indigo-600 shadow"
                     : status === "unpaid"
-                    ? "bg-red-500 text-white border-red-500 shadow"
-                    : "bg-indigo-600 text-white border-indigo-600 shadow"
+                      ? "bg-red-500 text-white border-red-500 shadow"
+                      : "bg-indigo-600 text-white border-indigo-600 shadow"
                   : "bg-white border-gray-300 text-gray-700 hover:bg-gray-100"
               }`}
             >
