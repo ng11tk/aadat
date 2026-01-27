@@ -1,14 +1,14 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Plus } from "lucide-react";
-import { useApolloClient, useMutation, useQuery } from "@apollo/client/react";
-import { INSERT_EXPENSE_BILLS } from "../../graphql/mutation";
+import { useApolloClient, useQuery } from "@apollo/client/react";
 import { promiseResolver } from "../../utils/promisResolver";
 import {
   FETCH_EMPLOYEES,
   GET_EXPENSE_CATEGORIES_AGGREGATE,
 } from "../../graphql/query";
 import { useNavigate } from "react-router-dom";
+import api from "../../lib/axios";
 
 const today = new Date();
 const formatDate = (date) => date.toISOString().split("T")[0];
@@ -70,7 +70,7 @@ const ExpensePage = () => {
   const [expenses, setExpenses] = useState([]);
   const [filterMode, setFilterMode] = useState("thisMonth");
   const [fromDate, setFromDate] = useState(
-    formatDate(new Date(today.getFullYear(), today.getMonth(), 1))
+    formatDate(new Date(today.getFullYear(), today.getMonth(), 1)),
   );
   const [toDate, setToDate] = useState(formatDate(today));
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -85,9 +85,6 @@ const ExpensePage = () => {
     date: "",
   });
   const [employeesList, setemployeesList] = useState([]);
-
-  // insert expense
-  const [insertExpensebill] = useMutation(INSERT_EXPENSE_BILLS);
 
   // fetch expenses with filters
   const { data: employeeData } = useQuery(FETCH_EMPLOYEES);
@@ -117,7 +114,7 @@ const ExpensePage = () => {
     {
       variables: { whereBill },
       // fetchPolicy: "network-only",
-    }
+    },
   );
 
   const expenseCategories = expenseData?.expense_categories || [];
@@ -145,7 +142,7 @@ const ExpensePage = () => {
       setToDate(formatDate(today));
     } else if (mode === "thisMonth") {
       setFromDate(
-        formatDate(new Date(today.getFullYear(), today.getMonth(), 1))
+        formatDate(new Date(today.getFullYear(), today.getMonth(), 1)),
       );
       setToDate(formatDate(today));
     }
@@ -156,43 +153,21 @@ const ExpensePage = () => {
   const handleSaveExpense = async () => {
     if (!newExpense.category || !newExpense.amount) return;
 
-    const insertObject = {
-      expense_emp_id: newExpense.person || null,
-      category: newExpense.category,
-      advance: 0,
-      amount: Number(newExpense.amount),
-      remaining_amount: 0,
-      payment_status: "partial",
-      description: newExpense.description || null,
-      bhada_details:
-        newExpense.category === "Bhada"
-          ? {
-              vehicle: newExpense.vehicle,
-              modi: newExpense.modi,
-              item: newExpense.item,
-            }
-          : null,
-      date: formatDate(today),
-    };
-
-    // Call the mutation to insert expense bill
-    const [data, error] = await promiseResolver(
-      insertExpensebill({
-        variables: {
-          objects: insertObject,
-        },
-        onCompleted: () => {
-          client.cache.evict({ fieldName: "expense_categories" });
-          client.cache.evict({ fieldName: "expense_expense_bills_aggregate" });
-
-          client.cache.gc();
-        },
-      })
+    // backend api for inserting expense
+    const [res, err] = await promiseResolver(
+      api.post("/api/v1/expenses/expense/bill", {
+        newExpense,
+      }),
     );
-
-    if (error) {
-      console.error("Error inserting expense bill:", error);
+    if (err) {
+      console.error("Insert Expense Error:", err);
+      return;
     }
+
+    client.cache.evict({ fieldName: "expense_categories" });
+    client.cache.evict({ fieldName: "expense_expense_bills_aggregate" });
+
+    client.cache.gc();
     setNewExpense({
       category: "Food",
       description: "",
@@ -235,10 +210,10 @@ const ExpensePage = () => {
             {mode === "today"
               ? "Today"
               : mode === "thisWeek"
-              ? "This Week"
-              : mode === "thisMonth"
-              ? "This Month"
-              : "Custom"}
+                ? "This Week"
+                : mode === "thisMonth"
+                  ? "This Month"
+                  : "Custom"}
           </button>
         ))}
 
@@ -286,7 +261,7 @@ const ExpensePage = () => {
                 `/expense/${encodeURIComponent(exp.category.toLowerCase())}`,
                 {
                   state: { expense: exp },
-                }
+                },
               )
             }
           >

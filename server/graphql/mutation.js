@@ -103,3 +103,23 @@ export const INSERT_SUPPLIER_TRANSACTION = `
     }
   }
 `;
+
+export const INSERT_EXPENSE_BILLS = `
+  mutation INSERT_EXPENSE_BILLS(
+    $objects: [expense_expense_bills_insert_input!] = {}
+  ) {
+    insert_expense_expense_bills(objects: $objects) {
+      affected_rows
+    }
+  }
+`;
+
+export const INSERT_EXPENSE_TRANSACTIONS = `
+  mutation INSERT_EXPENSE_TRANSACTIONS(
+    $objects: [expense_expense_transactions_insert_input!] = {}
+  ) {
+    insert_expense_expense_transactions(objects: $objects) {
+      affected_rows
+    }
+  }
+`;

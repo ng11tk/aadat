@@ -3,8 +3,8 @@ import { useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { FETCH_EXPENSE_BILLS, FETCH_EMPLOYEES } from "../../graphql/query";
 import { useQuery, useMutation, useApolloClient } from "@apollo/client/react";
-import { INSERT_EXPENSE_TRANSACTIONS } from "../../graphql/mutation";
 import { promiseResolver } from "../../utils/promisResolver";
+import api from "../../lib/axios";
 
 const categoryColors = {
   Food: "bg-green-100 text-green-800",
@@ -24,7 +24,7 @@ const formatCurrency = (v) => {
     return (
       "₹" +
       new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(
-        Number(v)
+        Number(v),
       )
     );
   } catch {
@@ -40,7 +40,7 @@ const ExpenseDetails = () => {
   const [expenseTotal, setExpenseTotal] = useState({});
   const [filterMode, setFilterMode] = useState("thisMonth");
   const [fromDate, setFromDate] = useState(
-    formatDate(new Date(today.getFullYear(), today.getMonth(), 1))
+    formatDate(new Date(today.getFullYear(), today.getMonth(), 1)),
   );
   const [toDate, setToDate] = useState(formatDate(today));
   const [personFilter, setPersonFilter] = useState("");
@@ -85,7 +85,7 @@ const ExpenseDetails = () => {
     if (!expenseData) return;
 
     setExpenseTotal(
-      expenseData?.expense_expense_bills_aggregate?.aggregate?.sum || {}
+      expenseData?.expense_expense_bills_aggregate?.aggregate?.sum || {},
     );
     setExpenses(expenseData?.expense_expense_bills_aggregate.nodes || []);
   }, [expenseData]);
@@ -99,9 +99,6 @@ const ExpenseDetails = () => {
     },
   });
   const employees = employeeData?.expense_employees || [];
-
-  //* mutations
-  const [insertExpenseTransactions] = useMutation(INSERT_EXPENSE_TRANSACTIONS);
 
   // payment selection state (id -> { mode: 'full'|'partial', amount, finalized })
   const updatePaymentSelection = (id, mode, amount = 0) => {
@@ -135,38 +132,40 @@ const ExpenseDetails = () => {
 
   const totalSelectedAmount = Object.values(selectedPayments).reduce(
     (sum, t) => sum + (t.amount || 0),
-    0
+    0,
   );
 
   const handleConfirmPayments = async () => {
-    const output = Object.entries(selectedPayments).map(([id, v]) => ({
-      expense_bill_id: id,
-      amount: v.amount || 0,
-      date: formatDate(new Date()),
-    }));
-
-    if (output.length === 0) return;
+    if (totalSelectedAmount <= 0) return;
 
     setIsProcessing(true);
-    const [, error] = await promiseResolver(
-      insertExpenseTransactions({
-        variables: { objects: output },
-        onCompleted: () => {
-          client.cache.evict({
-            fieldName: "expense_categories",
-          });
+    try {
+      const [res, err] = await promiseResolver(
+        api.post("/api/v1/expenses/expense/transactions", {
+          selectedPayments,
+        }),
+      );
+      if (err || !res?.data) {
+        console.error("Expense Transactions API Error:", err);
+        alert("Failed to process expense payments.");
+        setIsProcessing(false);
+        return;
+      }
+      alert("Expense payments processed successfully.");
 
-          client.cache.gc();
-        },
-      })
-    );
-    setIsProcessing(false);
-    if (error) {
-      console.error("Error inserting expense payments:", error);
-      return;
+      client.cache.evict({
+        fieldName: "expense_categories",
+      });
+
+      client.cache.gc();
+      setSelectedPayments({});
+      if (typeof expenseRefetch === "function") expenseRefetch();
+    } catch (error) {
+      console.error("Error in processing expense payments:", error);
+      alert("An error occurred while processing payments.");
+    } finally {
+      setIsProcessing(false);
     }
-    setSelectedPayments({});
-    if (typeof expenseRefetch === "function") expenseRefetch();
   };
 
   // quick filter
@@ -180,7 +179,7 @@ const ExpenseDetails = () => {
       setToDate(formatDate(today));
     } else if (mode === "thisMonth") {
       setFromDate(
-        formatDate(new Date(today.getFullYear(), today.getMonth(), 1))
+        formatDate(new Date(today.getFullYear(), today.getMonth(), 1)),
       );
       setToDate(formatDate(today));
     }
@@ -510,7 +509,7 @@ const ExpenseDetails = () => {
                           updatePaymentSelection(
                             exp.id,
                             "partial",
-                            info.amount || 0
+                            info.amount || 0,
                           );
                         }}
                         className={`flex-1 px-3 py-1 rounded-full text-sm font-medium ${
