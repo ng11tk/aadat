@@ -2,12 +2,12 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus } from "lucide-react";
 import { motion } from "framer-motion";
-import { useApolloClient, useMutation, useQuery } from "@apollo/client/react";
-import { INSERT_BUYER } from "../../graphql/mutation";
+import { useApolloClient, useQuery } from "@apollo/client/react";
 import { promiseResolver } from "../../utils/promisResolver";
 import { FETCH_BUYERS_LIST } from "../../graphql/query";
 import { useDebounce } from "../../utils/debounce";
-
+import api from "../../lib/axios";
+``;
 const BuyerDashboard = () => {
   const navigate = useNavigate();
   const client = useApolloClient();
@@ -19,6 +19,7 @@ const BuyerDashboard = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newBuyer, setNewBuyer] = useState({ name: "", contact: "" });
   const [errors, setErrors] = useState({ contact: "" });
+  const [insetBuyerLoading, setInsetBuyerLoading] = useState(false);
 
   const debouncedBuyerFilter = useDebounce(buyerFilter, 400);
 
@@ -31,17 +32,13 @@ const BuyerDashboard = () => {
     return w;
   }, [statusFilter, debouncedBuyerFilter]);
 
-  // insert buyer mutation would go here
-  const [insertBuyer, { loading: insetBuyerLoading }] =
-    useMutation(INSERT_BUYER);
-
   // fetch buyers details
   const { data: buyersData, loading: buyersLoading } = useQuery(
     FETCH_BUYERS_LIST,
     {
-      variables: { whereBuyer },
+      variables: { where: whereBuyer },
       // fetchPolicy: "network-only",
-    }
+    },
   );
   const fetchedBuyers = buyersData?.buyer_buyers ?? [];
   useEffect(() => {
@@ -53,7 +50,7 @@ const BuyerDashboard = () => {
         total: b.total_amount,
         paid: b.total_amount - b.remaining_amount,
         contact: b.phone,
-      }))
+      })),
     );
   }, [fetchedBuyers]);
 
@@ -67,24 +64,27 @@ const BuyerDashboard = () => {
     // ensure digits-only phone
     const digits = (newBuyer.contact || "").toString().replace(/\D/g, "");
 
-    // call mutation to insert buyer
-    const [data, error] = await promiseResolver(
-      insertBuyer({
-        variables: {
-          object: { name: newBuyer.name, phone: digits },
-        },
-        onCompleted: () => {
-          client.cache.evict({
-            fieldName: "buyer_buyers",
-          });
+    setInsetBuyerLoading(true);
 
-          client.cache.gc();
-        },
-      })
+    // backend api for inserting buyer
+    const [res, err] = await promiseResolver(
+      api.post("/api/v1/buyer/create", {
+        name: newBuyer.name,
+        phone: digits,
+      }),
     );
 
-    if (error) {
-      console.error("Error inserting buyer:", error);
+    setInsetBuyerLoading(false);
+
+    // clear cache to refetch
+    client.cache.evict({
+      fieldName: "buyer_buyers",
+    });
+
+    client.cache.gc();
+
+    if (err) {
+      console.error("Error inserting buyer:", err);
       return;
     }
 
@@ -187,8 +187,8 @@ const BuyerDashboard = () => {
                 status === "paid"
                   ? "bg-indigo-50 border-indigo-200"
                   : status === "partial"
-                  ? "bg-orange-50 border-orange-200"
-                  : "bg-red-50 border-red-200"
+                    ? "bg-orange-50 border-orange-200"
+                    : "bg-red-50 border-red-200"
               }`}
               onClick={() =>
                 navigate(`/buyers/${encodeURIComponent(b.name)}`, {
@@ -205,8 +205,8 @@ const BuyerDashboard = () => {
                     status === "paid"
                       ? "badge-primary"
                       : status === "partial"
-                      ? "badge-warning"
-                      : "badge-error"
+                        ? "badge-warning"
+                        : "badge-error"
                   }`}
                 >
                   {status.toUpperCase()}

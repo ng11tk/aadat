@@ -1,16 +1,15 @@
-import React, { use, useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "react-router-dom";
-import { useApolloClient, useMutation, useQuery } from "@apollo/client/react";
+import { useApolloClient, useQuery } from "@apollo/client/react";
 import { FETCH_BUYER_DETAILS } from "../../graphql/query";
-import { INSERT_BUYER_TRANSACTION } from "../../graphql/mutation";
 import { promiseResolver } from "../../utils/promisResolver";
+import api from "../../lib/axios";
 
 const formatDate = (date: Date) => date.toISOString().split("T")[0];
 
 const BuyerDetails = () => {
   const client = useApolloClient();
-
   const today = new Date();
   const location = useLocation();
   const buyerFromState = location.state?.buyer || {};
@@ -19,7 +18,7 @@ const BuyerDetails = () => {
   const [modalTransaction, setModalTransaction] = useState<any | null>(null);
   const [filterMode, setFilterMode] = useState("thisMonth");
   const [fromDate, setFromDate] = useState(
-    formatDate(new Date(today.getFullYear(), today.getMonth(), 1))
+    formatDate(new Date(today.getFullYear(), today.getMonth(), 1)),
   );
   const [toDate, setToDate] = useState(formatDate(today));
   const [statusFilter, setStatusFilter] = useState("all");
@@ -38,10 +37,6 @@ const BuyerDetails = () => {
 
     return w;
   }, [fromDate, toDate]);
-
-  //* mutations
-  // insert buyer transaction mutation
-  const [insertBuyerTransaction] = useMutation(INSERT_BUYER_TRANSACTION);
 
   //* queries
   // fetch buyer details
@@ -74,7 +69,7 @@ const BuyerDetails = () => {
           quantity: it.quantity,
           rate: it.unit_price,
         })),
-      })
+      }),
     );
     const { remaining_amount, total_amount } =
       buyer_buyers_by_pk?.buyer_purchases_aggregate?.aggregate?.sum;
@@ -99,7 +94,7 @@ const BuyerDetails = () => {
       setToDate(formatDate(today));
     } else if (mode === "thisMonth") {
       setFromDate(
-        formatDate(new Date(today.getFullYear(), today.getMonth(), 1))
+        formatDate(new Date(today.getFullYear(), today.getMonth(), 1)),
       );
       setToDate(formatDate(today));
     }
@@ -135,31 +130,30 @@ const BuyerDetails = () => {
 
   const totalSelectedAmount = Object.values(selectedTransactions).reduce(
     (sum: number, t: any) => sum + (t.amount || 0),
-    0
+    0,
   );
 
   const confirmPayment = async () => {
-    // naive local update: subtract from due and persist to localStorage
-    const output = Object.entries(selectedTransactions).map(([id, value]) => {
-      return { buyer_purchase_id: id, amount: value.amount };
-    });
-
-    const [data, error] = await promiseResolver(
-      insertBuyerTransaction({
-        variables: { objects: output },
-        onCompleted: () => {
-          client.cache.evict({
-            fieldName: "buyer_buyers",
-          });
-
-          client.cache.gc();
-        },
-      })
-    );
-    if (error) {
-      console.error("Error recording payment. Please try again.", error);
+    if (totalSelectedAmount === 0) {
+      alert("Please select at least one transaction with a valid amount.");
       return;
     }
+
+    const [data, error] = await promiseResolver(
+      api.post("/api/v1/buyer/transaction", { selectedTransactions }),
+    );
+
+    if (error) {
+      alert("Error recording payment. Please try again.");
+      return;
+    }
+
+    // clear cache to reflect updated dues
+    client.cache.evict({
+      fieldName: "buyer_buyers",
+    });
+
+    client.cache.gc();
 
     // reset selection
     setSelectedTransactions({});
@@ -210,10 +204,10 @@ const BuyerDetails = () => {
               {mode === "today"
                 ? "Today"
                 : mode === "thisWeek"
-                ? "This Week"
-                : mode === "thisMonth"
-                ? "This Month"
-                : "Custom"}
+                  ? "This Week"
+                  : mode === "thisMonth"
+                    ? "This Month"
+                    : "Custom"}
             </button>
           ))}
         </div>
@@ -320,7 +314,7 @@ const BuyerDetails = () => {
                           updateTransactionSelection(
                             t.id,
                             "partial",
-                            info.amount || 0
+                            info.amount || 0,
                           );
                         }}
                         className={`flex-1 px-3 py-1 rounded-full text-sm font-medium ${

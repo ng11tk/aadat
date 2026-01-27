@@ -67,3 +67,21 @@ export const INSERT_SALES_ORDER_ITEMS = `
     }
   }
 `;
+
+export const INSERT_BUYER = `
+  mutation INSERT_BUYER($object: buyer_buyers_insert_input = {}) {
+    insert_buyer_buyers_one(object: $object) {
+      id
+    }
+  }
+`;
+
+export const INSERT_BUYER_TRANSACTION = `
+  mutation INSERT_BUYER_TRANSACTION(
+    $objects: [buyer_buyer_transactions_insert_input!] = {}
+  ) {
+    insert_buyer_buyer_transactions(objects: $objects) {
+      affected_rows
+    }
+  }
+`;
