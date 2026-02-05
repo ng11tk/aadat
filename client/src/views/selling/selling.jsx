@@ -2,17 +2,19 @@ import React, { useEffect, useMemo, useState } from "react";
 import SummaryModal from "./components/summary";
 import ItemCard from "./components/itemCard";
 import { FETCH_MODI_ITEMS, GET_BUYERS } from "../../graphql/query";
-import { useQuery } from "@apollo/client/react";
+import { useApolloClient, useQuery } from "@apollo/client/react";
 import { promiseResolver } from "../../utils/promisResolver";
 import api from "../../lib/axios";
 
 const SalesDashboard = () => {
+  const client = useApolloClient();
   const [modiList, setModiList] = useState([]);
   const [buyers, setBuyers] = useState([]);
   const [buyerDropdownOpen, setBuyerDropdownOpen] = useState(false);
   const [selectedModi, setSelectedModi] = useState(null);
   const [selectedBuyer, setSelectedBuyer] = useState(null);
   const [addedItems, setAddedItems] = useState([]);
+  const [insertSalesOrderLoading, setInsertSalesOrderLoading] = useState(false);
 
   // fetch buyers on load
   const { data: fetchBuyers } = useQuery(GET_BUYERS);
@@ -134,22 +136,35 @@ const SalesDashboard = () => {
       order_date: new Date().toISOString().split("T")[0],
       items_missing_rate_count: 0,
     };
-    console.log("✔ Submit Payload", payload);
+    setInsertSalesOrderLoading(true);
+    try {
+      // call API to create sales order
+      const [res, err] = await promiseResolver(
+        api.post("/api/v1/sales/orders", payload),
+      );
+      if (err) {
+        console.error("❌ Error creating sales order:", err);
+        setInsertSalesOrderLoading(false);
+        return alert("Failed to create sales order. Check console.");
+      }
 
-    // call API to create sales order
-    const [res, err] = await promiseResolver(
-      api.post("/api/v1/sales/orders", payload),
-    );
-    if (err) {
-      console.error("❌ Error creating sales order:", err);
-      return alert("Failed to create sales order. Check console.");
+      alert("Submitted. Check console.");
+
+      // clear the cache data from dashboard sales query
+      client.cache.evict({
+        fieldName: "sales_sales_order",
+      });
+      client.cache.gc();
+
+      modiRefetch();
+      setAddedItems([]);
+      setSelectedBuyer(null);
+      setSelectedModi(null);
+    } catch (e) {
+      console.error("❌ Error setting loading state:", e);
+    } finally {
+      setInsertSalesOrderLoading(false);
     }
-
-    alert("Submitted. Check console.");
-    modiRefetch();
-    setAddedItems([]);
-    setSelectedBuyer(null);
-    setSelectedModi(null);
   };
 
   return (
@@ -278,9 +293,13 @@ const SalesDashboard = () => {
             <button
               onClick={handleSubmit}
               className="px-6 py-2 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700 disabled:opacity-40"
-              disabled={!selectedBuyer || addedItems.length === 0}
+              disabled={
+                !selectedBuyer ||
+                addedItems.length === 0 ||
+                insertSalesOrderLoading
+              }
             >
-              Submit
+              {insertSalesOrderLoading ? "Submitting..." : "Submit"}
             </button>
           </div>
         </div>
