@@ -27,15 +27,13 @@ const SupplierDashboard = () => {
   const debouncedSupplierFilter = useDebounce(supplierFilter, 400);
 
   // Build GraphQL where filter object
-  const whereSupplier = useMemo(() => {
-    const w = {};
-    if (typeFilter !== "all") w.type = { _eq: typeFilter };
-    if (statusFilter !== "all") w.payment_status = { _eq: statusFilter };
-    if (debouncedSupplierFilter.trim() !== "")
-      w.name = { _ilike: `%${debouncedSupplierFilter}%` };
-    return w;
-  }, [typeFilter, statusFilter, debouncedSupplierFilter]);
-
+  const whereSupplier = {
+    ...(typeFilter !== "all" && { type: { _eq: typeFilter } }),
+    ...(statusFilter !== "all" && { payment_status: { _eq: statusFilter } }),
+    ...(debouncedSupplierFilter.trim() !== "" && {
+      name: { _ilike: `%${debouncedSupplierFilter}%` },
+    }),
+  };
   // fetch suppliers details
   const { error, data, loading } = useQuery(FETCH_SUPPLIERS_AGGREGATE, {
     variables: { whereSupplier },

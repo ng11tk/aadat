@@ -23,20 +23,18 @@ const BuyerDashboard = () => {
 
   const debouncedBuyerFilter = useDebounce(buyerFilter, 400);
 
-  const whereBuyer = React.useMemo(() => {
-    let w = {};
-    if (statusFilter !== "all") w.payment_status = { _eq: statusFilter };
-    if (debouncedBuyerFilter.trim() !== "")
-      w.name = { _ilike: `%${debouncedBuyerFilter}%` };
-
-    return w;
-  }, [statusFilter, debouncedBuyerFilter]);
+  const whereBuyer = {
+    ...(statusFilter !== "all" && { payment_status: { _eq: statusFilter } }),
+    ...(debouncedBuyerFilter.trim() !== "" && {
+      name: { _ilike: `%${debouncedBuyerFilter}%` },
+    }),
+  };
 
   // fetch buyers details
   const { data: buyersData, loading: buyersLoading } = useQuery(
     FETCH_BUYERS_LIST,
     {
-      variables: { where: whereBuyer },
+      variables: { whereBuyer },
       // fetchPolicy: "network-only",
     },
   );
