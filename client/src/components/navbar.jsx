@@ -1,17 +1,18 @@
 import axios from "axios";
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 
 const Navbar = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleLogout = async () => {
     await axios.post(
       "http://localhost:3000/server/auth/logout",
       {},
-      { withCredentials: true }
+      { withCredentials: true },
     );
     navigate("/login");
   };
@@ -45,7 +46,11 @@ const Navbar = () => {
               <Link
                 key={link.path}
                 to={link.path}
-                className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 transition"
+                className={`px-3 py-2 rounded-md text-sm font-medium transition ${
+                  location.pathname === link.path
+                    ? "bg-emerald-100 text-emerald-600 font-semibold"
+                    : "text-gray-700 hover:bg-emerald-50 hover:text-emerald-600"
+                }`}
               >
                 {link.label}
               </Link>
@@ -105,7 +110,11 @@ const Navbar = () => {
                 key={link.path}
                 to={link.path}
                 onClick={() => setMobileMenuOpen(false)}
-                className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 transition"
+                className={`block px-3 py-2 rounded-md text-base font-medium transition ${
+                  location.pathname === link.path
+                    ? "bg-emerald-100 text-emerald-600 font-semibold"
+                    : "text-gray-700 hover:bg-emerald-50 hover:text-emerald-600"
+                }`}
               >
                 {link.label}
               </Link>
