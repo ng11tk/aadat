@@ -22,46 +22,6 @@ const categoryColors = {
   Bhada: "bg-pink-100 text-pink-800",
   "Market Fee": "bg-teal-100 text-teal-800",
 };
-const expenseSample = [
-  {
-    id: 1,
-    category: "Food",
-    description: "Lunch for team",
-    amount: 500,
-    date: "2025-09-18",
-  },
-  {
-    id: 2,
-    category: "Repair",
-    description: "Machine repair",
-    amount: 1200,
-    date: "2025-09-16",
-  },
-  {
-    id: 3,
-    category: "Commission",
-    person: "Ramesh",
-    amount: 2000,
-    date: "2025-09-15",
-  },
-  {
-    id: 4,
-    category: "Salary",
-    person: "Sita",
-    amount: 15000,
-    date: "2025-09-01",
-  },
-  {
-    id: 6,
-    category: "Bhada",
-    vehicle: "MH12AB1234",
-    modi: "Supplier X",
-    item: "Fertilizer",
-    amount: 800,
-    date: "2025-09-12",
-  },
-  { id: 7, category: "Market Fee", amount: 100, date: "2025-09-14" },
-];
 
 const ExpensePage = () => {
   const client = useApolloClient();

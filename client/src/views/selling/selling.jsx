@@ -151,9 +151,10 @@ const SalesDashboard = () => {
       alert("Submitted. Check console.");
 
       // clear the cache data from dashboard sales query
-      client.cache.evict({
-        fieldName: "sales_sales_order",
+      ["sales_sales_order", "buyer_buyers"].forEach((field) => {
+        client.cache.evict({ fieldName: field });
       });
+
       client.cache.gc();
 
       modiRefetch();
