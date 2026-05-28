@@ -4,7 +4,7 @@ import {
 } from "../../graphql/mutation.js";
 import { FIND_SALES_ORDERS } from "../../graphql/query.js";
 import { gqlClient } from "../../lib/graphql.js";
-import { promiseResolver } from "../../utils/promisResolver.js";
+import { promiseResolver } from "../../utils/promiseResolver.js";
 
 export const createSalesOrder = async (req, res) => {
   // Logic to create a sales order

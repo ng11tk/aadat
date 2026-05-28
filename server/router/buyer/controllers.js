@@ -3,7 +3,7 @@ import {
   INSERT_BUYER_TRANSACTION,
 } from "../../graphql/mutation.js";
 import { gqlClient } from "../../lib/graphql.js";
-import { promiseResolver } from "../../utils/promisResolver.js";
+import { promiseResolver } from "../../utils/promiseResolver.js";
 
 export const createBuyer = async (req, res) => {
   try {

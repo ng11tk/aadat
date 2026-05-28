@@ -7,7 +7,7 @@ import {
   INSERT_USER,
 } from "../../graphql/mutation.js";
 import { GET_LOGIN_TOKENS, GET_USER_BY_EMAIL } from "../../graphql/query.js";
-import { promiseResolver } from "../../utils/promisResolver.js";
+import { promiseResolver } from "../../utils/promiseResolver.js";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 
@@ -19,7 +19,7 @@ const generateAccessToken = (existingUser) => {
     process.env.JWT_ACCESS_TOKEN_SECRET_KEY,
     {
       expiresIn: "15m",
-    }
+    },
   );
 };
 const generateRefreshToken = (existingUser) => {

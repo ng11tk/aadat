@@ -3,7 +3,7 @@ import {
   INSERT_EXPENSE_TRANSACTIONS,
 } from "../../graphql/mutation.js";
 import { gqlClient } from "../../lib/graphql.js";
-import { promiseResolver } from "../../utils/promisResolver.js";
+import { promiseResolver } from "../../utils/promiseResolver.js";
 
 const formatDate = (date) => date.toISOString().split("T")[0];
 
