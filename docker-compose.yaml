@@ -98,7 +98,7 @@ services:
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
     depends_on:
-      - client
+      - frontend
       - server
     networks:
       - aadat-network
