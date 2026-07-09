@@ -1,7 +1,8 @@
 import axios from "axios";
+import { BASE_URL } from "../constants/api";
 
 const api = axios.create({
-  baseURL: "http://localhost:3000/server", // match backend
+  baseURL: BASE_URL, // match backend
   withCredentials: true,
 });
 

@@ -128,6 +128,23 @@ export const CREATE_PAYMENT_ORDER = `
   mutation CREATE_PAYMENT_ORDER($object: payment_payments_insert_input!) {
     insert_payment_payments_one(object: $object) {
       id
+      amount
+      currency
+      notes
+      orderId
+      paymentId
+      receipt
+      status
     }
   }
+`;
+
+export const UPDATE_PAYMENT_ORDER = `
+  mutation UPDATE_PAYMENT_ORDER($where: payment_payments_bool_exp!, $status: String!) {
+  update_payment_payments(where: $where, _set: {status: $status}) {
+    returning {
+      id
+    }
+  }
+}
 `;

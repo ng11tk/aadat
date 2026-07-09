@@ -81,6 +81,12 @@ const Navbar = () => {
                 >
                   Settings
                 </Link>
+                <Link
+                  to="/premium"
+                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-600"
+                >
+                  Premium
+                </Link>
                 <button
                   onClick={handleLogout}
                   className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 border-t"
