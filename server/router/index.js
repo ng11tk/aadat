@@ -9,6 +9,7 @@ import {
   privateSupplierRouter,
 } from "./supplier/index.js";
 import { publicExpenseRouter, privateExpenseRouter } from "./expense/index.js";
+import { privatePaymentRouter, publicPaymentRouter } from "./payment/index.js";
 
 const serverPublicRouter = Router();
 const serverPrivateRouter = Router();
@@ -38,6 +39,10 @@ serverPrivateRouter.use("/api/v1/suppliers", privateSupplierRouter);
 // expense routes
 serverPublicRouter.use("/api/v1/expenses", publicExpenseRouter);
 serverPrivateRouter.use("/api/v1/expenses", privateExpenseRouter);
+
+// payment routes
+serverPublicRouter.use("/api/v1/payments", publicPaymentRouter);
+serverPrivateRouter.use("/api/v1/payments", privatePaymentRouter);
 
 // Export the main serverRouter
 export { serverPublicRouter, serverPrivateRouter };

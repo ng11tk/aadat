@@ -123,3 +123,11 @@ export const INSERT_EXPENSE_TRANSACTIONS = `
     }
   }
 `;
+
+export const CREATE_PAYMENT_ORDER = `
+  mutation CREATE_PAYMENT_ORDER($object: payment_payments_insert_input!) {
+    insert_payment_payments_one(object: $object) {
+      id
+    }
+  }
+`;
