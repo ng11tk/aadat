@@ -59,6 +59,11 @@ services:
     depends_on:
       hasura:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./server:/app/server
+      - ./server/.env:/app/server/.env
     environment:
       NODE_ENV: development
       PORT: 3000
@@ -66,8 +71,29 @@ services:
       DATA_HUB: https://daily-progress.hasura.app/v1/graphql
       JWT_ACCESS_TOKEN_SECRET_KEY: userpass
       JWT_REFRESH_TOKEN_SECRET_KEY: userpass
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_URL: redis://redis:6379
     networks:
       - aadat-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: aadat-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - aadat-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
 
   frontend:
     build:
@@ -87,38 +113,39 @@ services:
     networks:
       - aadat-network
 
-  nginx:
-    image: nginx:alpine
-    container_name: nginx
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./certbot/conf:/etc/letsencrypt
-      - ./certbot/www:/var/www/certbot
-    depends_on:
-      - frontend
-      - server
-    networks:
-      - aadat-network
-    restart: unless-stopped
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "wget",
-          "--no-verbose",
-          "--tries=1",
-          "--spider",
-          "http://localhost:80/health",
-        ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: nginx
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+  #     - ./certbot/conf:/etc/letsencrypt
+  #     - ./certbot/www:/var/www/certbot
+  #   depends_on:
+  #     - frontend
+  #     - server
+  #   networks:
+  #     - aadat-network
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test:
+  #       [
+  #         "CMD",
+  #         "wget",
+  #         "--no-verbose",
+  #         "--tries=1",
+  #         "--spider",
+  #         "http://localhost:80/health",
+  #       ]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
 
 volumes:
   postgres_data:
+  redis-data:
 
 networks:
   aadat-network:

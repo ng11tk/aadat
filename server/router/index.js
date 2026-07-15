@@ -10,15 +10,25 @@ import {
 } from "./supplier/index.js";
 import { publicExpenseRouter, privateExpenseRouter } from "./expense/index.js";
 import { privatePaymentRouter, publicPaymentRouter } from "./payment/index.js";
+import {  privateApiLimiter, publicApiLimiter } from "../middleware/rateLimiter.js";
 
 const serverPublicRouter = Router();
 const serverPrivateRouter = Router();
 
-// Apply protectedRoute middleware to all private routes
+
+
+// Authentication
 serverPrivateRouter.use(protectedRoute);
+
+// After authentication
+serverPrivateRouter.use(privateApiLimiter);
+
 
 // Use the authentication routes
 serverPublicRouter.use("/auth", authRouter);
+
+// Public APIs
+serverPublicRouter.use("/api/v1", publicApiLimiter);
 
 // opening routes
 serverPublicRouter.use("/api/v1/opening", openingPublicRouter);

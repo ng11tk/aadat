@@ -1,7 +1,7 @@
 import axios from "axios";
 import React from "react";
 import api from "../lib/axios";
-import { promiseResolver } from "../../../server/utils/promiseResolver";
+import { promiseResolver } from "../utils/promisResolver.js";
 
 const Premium = () => {
   const handleBuyClick = async (plan) => {

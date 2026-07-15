@@ -33,6 +33,7 @@ const protectedRoute = async (req, res, next) => {
     const user = decoded;
     // Attach user to request object
     req.user = user;
+    console.log("User attached to request:", req.user);
 
     // Proceed to next middleware or route handler
     next();

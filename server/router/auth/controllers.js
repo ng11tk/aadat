@@ -147,7 +147,7 @@ export const login = async (req, res) => {
       }),
     );
     if (error) {
-      console.error("refresh token insert faild!", error);
+      console.error("refresh token insert failed!", error);
       return res.status(500).json({ message: "Internal server error" });
     }
 

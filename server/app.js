@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import { serverPrivateRouter, serverPublicRouter } from "./router/index.js";
+import { authRouter } from "./router/auth/route.js";
 
 dotenv.config();
 const PORT = process.env.PORT || 3000;
