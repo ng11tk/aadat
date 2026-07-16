@@ -335,6 +335,24 @@ const AddItemModal = ({
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-600 mb-1">
+                      Weight
+                    </label>
+                    <input
+                      type="number"
+                      placeholder="Enter weight"
+                      value={item.weight}
+                      onChange={(e) =>
+                        handleItemChange(index, "weight", e.target.value)
+                      }
+                      className="w-full border border-gray-300 rounded-lg p-3 text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Row 2: Quantity + Unit */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 mb-1">
                       Rate
                     </label>
                     <input
@@ -347,10 +365,6 @@ const AddItemModal = ({
                       className="w-full border border-gray-300 rounded-lg p-3 text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                     />
                   </div>
-                </div>
-
-                {/* Row 2: Quantity + Unit */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div>
                     <label className="block text-sm font-medium text-gray-600 mb-1">
                       Quantity

@@ -12,8 +12,10 @@ export const createUnloading = async (req, res) => {
     }
 
     // Validate supplier name
-    if (newItem.type === "supplier" && !newItem.name?.trim()) {
-      return res.status(400).json({ message: "Supplier name is required" });
+    if (!newItem.name?.trim()) {
+      return res
+        .status(400)
+        .json({ message: `${newItem.type} Name is required` });
     }
 
     const totalKharcha = Object.values(newItem.kharcha_details).reduce(
@@ -28,14 +30,6 @@ export const createUnloading = async (req, res) => {
 
     const item = {
       ...newItem,
-      amount_paid: Number(newItem.amount_paid) || 0,
-      advance: Number(newItem.advance) || 0,
-      unloading_items: newItem.unloading_items.map((it) => ({
-        ...it,
-        rate: Number(it.rate) || 0,
-        quantity: Number(it.quantity) || 0,
-        remaining_quantity: Number(it.quantity) || 0,
-      })),
       kharcha_details: {
         commission: Number(newItem.kharcha_details.commission) || 0,
         labour: Number(newItem.kharcha_details.labour) || 0,
@@ -58,12 +52,8 @@ export const createUnloading = async (req, res) => {
       isDayClose: true,
       unloading_items: {
         data: item.unloading_items.map((it) => ({
-          name: it.name,
-          rate: it.rate,
-          quantity: it.quantity,
+          ...it,
           remaining_quantity: it.quantity,
-          unit: it.unit,
-          isSellable: it.isSellable,
         })),
       },
       supplier_unloading: {

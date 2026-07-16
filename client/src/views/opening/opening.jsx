@@ -22,23 +22,40 @@ const initialItem = {
     market: 0,
     driver_gift: 0,
   },
-  unloading_items: [
-    {
-      name: "ghobhi",
-      rate: 10,
-      quantity: 10,
-      remaining_quantity: 10,
-      unit: "quintal",
-      isSellable: true,
-    },
-  ],
 };
+const supplierUnloadingItems = [
+  {
+    name: "Aaloo",
+    weight: 500,
+    rate: 10,
+    quantity: 10,
+    remaining_quantity: 10,
+    unit: "quintal",
+    isSellable: true,
+  },
+];
+const modiUnloadingItems = [
+  {
+    name: "Gobhi",
+    rate: 10,
+    quantity: 10,
+    remaining_quantity: 10,
+    unit: "quintal",
+    isSellable: true,
+  },
+];
 
 const OpeningStock = () => {
   const client = useApolloClient();
   const [incomingItems, setIncomingItems] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newItem, setNewItem] = useState(initialItem);
+  const [newItem, setNewItem] = useState({
+    ...initialItem,
+    unloading_items:
+      initialItem.type === "supplier"
+        ? supplierUnloadingItems
+        : modiUnloadingItems,
+  });
   const [insertUnloadingLoading, setInsertUnloadingLoading] = useState(false);
 
   // queries
@@ -95,7 +112,7 @@ const OpeningStock = () => {
 
       // refetch both queries to sync UI
       refetchOpeningData();
-      setNewItem(initialItem);
+      setNewItem({ ...initialItem, unloading_items: supplierUnloadingItems });
       setIsModalOpen(false);
     } catch (e) {
       console.error("🚀 ~ handleAddItem ~ exception:", e);
