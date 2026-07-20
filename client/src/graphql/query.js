@@ -329,3 +329,16 @@ export const FETCH_SALES = gql`
     }
   }
 `;
+
+export const FETCH_SALES_AGGREGATE = gql`
+  query FETCH_SALES_AGGREGATE($where: sales_sales_order_bool_exp = {}) {
+    sales_sales_order_aggregate(where: $where) {
+      aggregate {
+        sum {
+          total_amount
+          items_missing_rate_count
+        }
+      }
+    }
+  }
+`;

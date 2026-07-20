@@ -12,8 +12,16 @@ const PORT = process.env.PORT || 3000;
 const app = express();
 
 // CORS configuration - support both development and production origins
+const allowedOrigins = ["http://localhost:5173", "http://localhost:5174"];
+
 const corsOptions = {
-  origin: process.env.CLIENT_URL || "http://localhost:5173",
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS not allowed for origin: ${origin}`));
+    }
+  },
   credentials: true,
   optionsSuccessStatus: 200,
 };

@@ -21,6 +21,7 @@ import ExpensePage from "./views/expense";
 import ProtectedRoute from "./components/protectedRoute";
 import ExpenseDetails from "./views/expense/expenseDetails";
 import Premium from "./components/premium";
+import Audit from "./components/audit";
 
 function Layout({ children }) {
   const location = useLocation();
@@ -126,6 +127,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Premium />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/audit"
+                element={
+                  <ProtectedRoute>
+                    <Audit />
                   </ProtectedRoute>
                 }
               />

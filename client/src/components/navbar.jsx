@@ -24,6 +24,7 @@ const Navbar = () => {
     { path: "/buyer", label: "Buyer" },
     { path: "/supplier", label: "Supplier" },
     { path: "/expense", label: "Expense" },
+    { path: "/audit", label: "Audit" },
   ];
 
   return (

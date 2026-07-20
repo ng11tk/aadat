@@ -14,7 +14,7 @@ const today = new Date();
 const formatDate = (date) => date.toISOString().split("T")[0];
 
 const categoryColors = {
-  Food: "bg-green-100 text-green-800",
+  Food: "bg-green-100 text-green-800", 
   Repair: "bg-orange-100 text-orange-800",
   Commission: "bg-purple-100 text-purple-800",
   Salary: "bg-indigo-100 text-indigo-800",
