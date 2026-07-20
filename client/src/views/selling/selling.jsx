@@ -5,6 +5,7 @@ import { FETCH_MODI_ITEMS, GET_BUYERS } from "../../graphql/query";
 import { useApolloClient, useQuery } from "@apollo/client/react";
 import { promiseResolver } from "../../utils/promisResolver";
 import api from "../../lib/axios";
+import { Link } from "react-router-dom";
 
 const SalesDashboard = () => {
   const client = useApolloClient();
@@ -172,46 +173,54 @@ const SalesDashboard = () => {
     <div className="p-6 bg-white min-h-screen text-gray-900">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Sell Dashboard</h1>
-        <div className="relative w-60">
-          <div
-            className="bg-white border rounded-xl p-3 shadow-sm flex items-center justify-between cursor-pointer hover:shadow-md transition-all"
-            onClick={() => setBuyerDropdownOpen(!buyerDropdownOpen)}
+        <div className="flex gap-4 items-center">
+          <Link
+            to="/sales/bulk-upload"
+            className="text-blue-500 hover:underline"
           >
-            <span className="text-gray-700">
-              {buyers.find((b) => b.id === selectedBuyer)?.buyer_name ||
-                "Choose Buyer"}
-            </span>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5 text-gray-500"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
+            Bulk Upload
+          </Link>
+          <div className="relative w-60">
+            <div
+              className="bg-white border rounded-xl p-3 shadow-sm flex items-center justify-between cursor-pointer hover:shadow-md transition-all"
+              onClick={() => setBuyerDropdownOpen(!buyerDropdownOpen)}
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M19 9l-7 7-7-7"
-              />
-            </svg>
-          </div>
-          {buyerDropdownOpen && (
-            <div className="absolute top-full left-0 right-0 bg-white shadow-lg rounded-xl border mt-1 z-20 max-h-60 overflow-auto">
-              {buyers.map((b) => (
-                <div
-                  key={b.id}
-                  className="p-3 hover:bg-gray-100 cursor-pointer text-sm"
-                  onClick={() => {
-                    setSelectedBuyer(b.id);
-                    setBuyerDropdownOpen(false);
-                  }}
-                >
-                  {b.buyer_name}
-                </div>
-              ))}
+              <span className="text-gray-700">
+                {buyers.find((b) => b.id === selectedBuyer)?.buyer_name ||
+                  "Choose Buyer"}
+              </span>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5 text-gray-500"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M19 9l-7 7-7-7"
+                />
+              </svg>
             </div>
-          )}
+            {buyerDropdownOpen && (
+              <div className="absolute top-full left-0 right-0 bg-white shadow-lg rounded-xl border mt-1 z-20 max-h-60 overflow-auto">
+                {buyers.map((b) => (
+                  <div
+                    key={b.id}
+                    className="p-3 hover:bg-gray-100 cursor-pointer text-sm"
+                    onClick={() => {
+                      setSelectedBuyer(b.id);
+                      setBuyerDropdownOpen(false);
+                    }}
+                  >
+                    {b.buyer_name}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
