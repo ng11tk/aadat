@@ -34,7 +34,11 @@ export const buyerTransaction = async (req, res) => {
   try {
     const { selectedTransactions } = req.body;
     const output = Object.entries(selectedTransactions).map(([id, value]) => {
-      return { buyer_purchase_id: id, amount: value.amount };
+      return {
+        buyer_purchase_id: id,
+        amount: value.amount,
+        transaction_date: new Date().toISOString().split("T")[0],
+      };
     });
 
     const [response, error] = await promiseResolver(

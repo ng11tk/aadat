@@ -19,7 +19,7 @@ const SalesDashboard = () => {
 
   // fetch buyers on load
   const { data: fetchBuyers } = useQuery(GET_BUYERS);
-  const buyersData = fetchBuyers?.buyer_buyers || [];
+  const buyersData = fetchBuyers?.buyer_buyers || []; 
   useEffect(() => {
     if (!fetchBuyers) return;
     const formatted = buyersData.map((b) => ({ id: b.id, buyer_name: b.name }));
@@ -121,7 +121,7 @@ const SalesDashboard = () => {
     if (addedItems.length === 0) return alert("Add at least one item.");
 
     const payload = {
-      buyer_id: selectedBuyer,
+      buyer_id: selectedBuyer, 
       sales_order_items: {
         data: addedItems.map((it) => ({
           unloading_item_id: it.item_id,
