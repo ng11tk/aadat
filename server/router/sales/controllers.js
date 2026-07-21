@@ -40,7 +40,7 @@ export const createSalesOrder = async (req, res) => {
       const previousTotal = existingOrder.total_amount || 0;
       const updatedTotal = previousTotal + totalAmount;
 
-      // Update the sales order total first
+      //* Update the sales order total first
       const [resultUpdate, errorUpdate] = await promiseResolver(
         gqlClient.request(UPSERT_SALES_ORDER, {
           object: {
@@ -61,7 +61,8 @@ export const createSalesOrder = async (req, res) => {
       const updateData = resultUpdate;
 
       console.log("Sales order total updated:", updateData);
-      // Then insert the new items. If this fails, attempt to rollback the total_amount.
+
+      //* Then insert the new items. If this fails, attempt to rollback the total_amount.
       try {
         const [insertItemsData, insertItemsError] = await promiseResolver(
           gqlClient.request(INSERT_SALES_ORDER_ITEMS, {

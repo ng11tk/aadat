@@ -1,20 +1,20 @@
 import { useQuery } from "@apollo/client/react";
 import React, { useMemo, useState } from "react";
-import { FETCH_SALES_AGGREGATE } from "../../graphql/query";
+import { FETCH_AUDIT_DATA } from "../../graphql/query";
 
 const today = new Date();
 const formatDate = (date) => date.toISOString().split("T")[0];
 
 const auditHeader = [
   { key: "date", label: "Date" },
-  { key: "opening_cash", label: "Opening Cash" },
-  { key: "opening_borrowed", label: "Opening Borrowed" },
-  { key: "total_amount", label: "Sales Amount" },
+  { key: "opening_balance", label: "Opening Balance" },
+  // { key: "opening_borrowed", label: "Opening Borrowed" },
+  { key: "sales_amount", label: "Sales Amount" },
   { key: "borrowed_amount", label: "Borrowed Amount" },
   { key: "deposit", label: "Deposit" },
   { key: "expenses", label: "Expenses" },
   { key: "payments", label: "Payments" },
-  { key: "closing_cash", label: "Closing Cash" },
+  { key: "closing_balance", label: "Closing Balance" },
 ];
 
 const Audit = () => {
@@ -27,26 +27,24 @@ const Audit = () => {
   const where = useMemo(() => {
     const w = {};
     if (!fromDate && toDate) {
-      w.order_date = { _eq: toDate };
+      w.audit_date = { _eq: toDate };
     }
-    // only add order_date filter when both fromDate and toDate are present
+    // only add audit_date filter when both fromDate and toDate are present
     if (fromDate && toDate) {
-      w.order_date = { _gte: fromDate, _lte: toDate };
+      w.audit_date = { _gte: fromDate, _lte: toDate };
     }
 
     return w;
   }, [fromDate, toDate]);
-  console.log("🚀 ~ Audit ~ where:", where);
 
   // fetch sales aggregate data based on the where filter
   const {
-    data: salesData,
-    loading: salesLoading,
-    error: salesError,
-  } = useQuery(FETCH_SALES_AGGREGATE, {
+    data: auditData,
+    loading: auditLoading,
+    error: auditError,
+  } = useQuery(FETCH_AUDIT_DATA, {
     variables: { where },
   });
-  console.log("🚀 ~ Audit ~ salesData:", salesData);
 
   // quick filter
   const applyQuickFilter = (mode) => {
@@ -65,8 +63,24 @@ const Audit = () => {
     }
   };
 
-  if (salesLoading) return <p>Loading...</p>;
-  if (salesError) return <p>Error: {salesError.message}</p>;
+  const mapAuditDataToTable = (data) => {
+    if (!data || !data.audit) return [];
+    return data.audit.map((audit, index) => ({
+      key: index + 1,
+      date: audit.audit_date,
+      opening_balance: audit.opening_balance,
+      // { key: "opening_borrowed", label: "Opening Borrowed" },
+      sales_amount: audit.sales_amount,
+      borrowed_amount: audit.borrowed_amount,
+      deposit_amount: audit.deposit_amount,
+      expense_amount: audit.expense_amount,
+      payment_amount: audit.payment_amount,
+      closing_balance: audit.closing_balance,
+    }));
+  };
+
+  if (auditLoading) return <p>Loading...</p>;
+  if (auditError) return <p>Error: {auditError.message}</p>;
 
   return (
     <div className="min-h-screen bg-gray-50 p-6 pt-4">
@@ -126,12 +140,18 @@ const Audit = () => {
           </thead>
           <tbody>
             {/* row 1 */}
-            <tr>
-              <th>1</th>
-              <td>Cy Ganderton</td>
-              <td>Quality Control Specialist</td>
-              <td>Blue</td>
-            </tr>
+            {mapAuditDataToTable(auditData).map((row) => (
+              <tr key={row.key}>
+                <td>{row.date}</td>
+                <td>{row.opening_balance || 0}</td>
+                <td>{row.sales_amount || 0}</td>
+                <td>{row.borrowed_amount || 0}</td>
+                <td>{row.deposit_amount || 0}</td>
+                <td>{row.expense_amount || 0}</td>
+                <td>{row.payment_amount || 0}</td>
+                <td>{row.closing_balance || 0}</td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>

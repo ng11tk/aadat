@@ -330,15 +330,17 @@ export const FETCH_SALES = gql`
   }
 `;
 
-export const FETCH_SALES_AGGREGATE = gql`
-  query FETCH_SALES_AGGREGATE($where: sales_sales_order_bool_exp = {}) {
-    sales_sales_order_aggregate(where: $where) {
-      aggregate {
-        sum {
-          total_amount
-          items_missing_rate_count
-        }
-      }
+export const FETCH_AUDIT_DATA = gql`
+  query FETCH_AUDIT_DATA($where: audit_bool_exp = {}) {
+    audit(where: $where) {
+      audit_date
+      opening_balance
+      sales_amount
+      borrowed_amount
+      deposit_amount
+      payment_amount
+      expense_amount
+      closing_balance
     }
   }
 `;
