@@ -1,6 +1,9 @@
 import { useQuery } from "@apollo/client/react";
 import React, { useMemo, useState } from "react";
 import { FETCH_AUDIT_DATA } from "../../graphql/query";
+import { promiseResolver } from "../../utils/promisResolver";
+import axios from "axios";
+import api from "../../lib/axios";
 
 const today = new Date();
 const formatDate = (date) => date.toISOString().split("T")[0];
@@ -42,6 +45,7 @@ const Audit = () => {
     data: auditData,
     loading: auditLoading,
     error: auditError,
+    refetch,
   } = useQuery(FETCH_AUDIT_DATA, {
     variables: { where },
   });
@@ -79,6 +83,44 @@ const Audit = () => {
     }));
   };
 
+  // handle fetch opening balance
+  const handleFetchOpeningBalance = () => {
+    // upsert opening balance in opening balance table based on the latest audit data
+
+    //* check if opening balance already exist in database or not
+    const isOpeningBalanceExist =
+      auditData?.audit?.[0]?.audit_date === formatDate(today);
+
+    const latestAudit = isOpeningBalanceExist
+      ? auditData?.audit?.[1]
+      : auditData?.audit?.[0];
+
+    if (!latestAudit) {
+      alert("No audit data available to fetch opening balance.");
+      return;
+    }
+
+    // fetch opening balance from the latest audit data
+    const openingBalance = latestAudit.closing_balance;
+    // upsert opening balance in opening balance table
+
+    const upsertOpeningBalance = async () => {
+      const [response, error] = await promiseResolver(
+        api.post("/api/v1/opening/opening-balance", { openingBalance }),
+      );
+
+      if (error) {
+        console.error("Error fetching opening balance:", error);
+      }
+
+      refetch();
+    };
+
+    upsertOpeningBalance();
+
+    // alert(`Opening balance of ${openingBalance} fetched successfully.`);
+  };
+
   if (auditLoading) return <p>Loading...</p>;
   if (auditError) return <p>Error: {auditError.message}</p>;
 
@@ -88,44 +130,54 @@ const Audit = () => {
       <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
         <h1 className="text-2xl font-bold text-gray-800">Audit</h1>
       </div>{" "}
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3 mb-6 items-center">
-        {["today", "thisWeek", "thisMonth", "custom"].map((mode) => (
-          <button
-            key={mode}
-            onClick={() => applyQuickFilter(mode)}
-            className={`px-4 py-2 rounded-lg border text-sm font-medium shadow-sm transition ${
-              filterMode === mode
-                ? "bg-emerald-600 text-white border-emerald-600"
-                : "bg-white border-gray-300 text-gray-700 hover:bg-emerald-50"
-            }`}
-          >
-            {mode === "today"
-              ? "Today"
-              : mode === "thisWeek"
-                ? "This Week"
-                : mode === "thisMonth"
-                  ? "This Month"
-                  : "Custom"}
-          </button>
-        ))}
+      <div className="flex justify-between items-center">
+        {/* Filters */}
+        <div className="flex flex-wrap gap-3 mb-6 items-center">
+          {["today", "thisWeek", "thisMonth", "custom"].map((mode) => (
+            <button
+              key={mode}
+              onClick={() => applyQuickFilter(mode)}
+              className={`px-4 py-2 rounded-lg border text-sm font-medium shadow-sm transition ${
+                filterMode === mode
+                  ? "bg-emerald-600 text-white border-emerald-600"
+                  : "bg-white border-gray-300 text-gray-700 hover:bg-emerald-50"
+              }`}
+            >
+              {mode === "today"
+                ? "Today"
+                : mode === "thisWeek"
+                  ? "This Week"
+                  : mode === "thisMonth"
+                    ? "This Month"
+                    : "Custom"}
+            </button>
+          ))}
 
-        {filterMode === "custom" && (
-          <>
-            <input
-              type="date"
-              value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
-              className="px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 shadow-sm"
-            />
-            <input
-              type="date"
-              value={toDate}
-              onChange={(e) => setToDate(e.target.value)}
-              className="px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 shadow-sm"
-            />
-          </>
-        )}
+          {filterMode === "custom" && (
+            <>
+              <input
+                type="date"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                className="px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 shadow-sm"
+              />
+              <input
+                type="date"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                className="px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 shadow-sm"
+              />
+            </>
+          )}
+        </div>
+        <div className="flex justify-end mb-6">
+          <button
+            className="px-4 py-2 bg-emerald-600 text-white rounded-lg shadow-sm hover:bg-emerald-700"
+            onClick={handleFetchOpeningBalance}
+          >
+            fetch opening balance
+          </button>
+        </div>
       </div>
       {/* Audit Table */}
       <div className="overflow-x-auto">

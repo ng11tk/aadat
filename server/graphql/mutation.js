@@ -148,3 +148,12 @@ export const UPDATE_PAYMENT_ORDER = `
   }
 }
 `;
+
+export const UPSERT_OPENING_BALANCE = `
+mutation UPSERT_OPENING_BALANCE($object: opening_opening_balance_insert_input = {}) {
+  insert_opening_opening_balance_one(object: $object, on_conflict: {constraint: opening_balance_opening_date_key, update_columns: opening_amount}) {
+    id
+  }
+}
+
+`;

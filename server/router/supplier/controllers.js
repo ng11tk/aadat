@@ -43,7 +43,11 @@ export const supplierTransactions = async (req, res) => {
     }
 
     const output = Object.entries(selectedTransactions).map(([id, value]) => {
-      return { supplier_unloading_id: id, amount: value.amount };
+      return {
+        supplier_unloading_id: id,
+        amount: value.amount,
+        transaction_date: new Date().toISOString().split("T")[0],
+      };
     });
 
     // transaction insertion logic goes here

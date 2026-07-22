@@ -1,4 +1,8 @@
-import { INSERT_OPENING, UPDATE_UNLOADING } from "../../graphql/mutation.js";
+import {
+  INSERT_OPENING,
+  UPDATE_UNLOADING,
+  UPSERT_OPENING_BALANCE,
+} from "../../graphql/mutation.js";
 import { gqlClient } from "../../lib/graphql.js";
 import { promiseResolver } from "../../utils/promiseResolver.js";
 
@@ -142,5 +146,35 @@ export const updateUnloading = async (req, res) => {
     return res
       .status(500)
       .json({ message: "Failed to update unloading status" });
+  }
+};
+
+export const openingBalance = async (req, res) => {
+  try {
+    const { openingBalance } = req.body;
+
+    const [upsertBalance, errorBalance] = await promiseResolver(
+      gqlClient.request(UPSERT_OPENING_BALANCE, {
+        object: {
+          opening_date: new Date().toISOString().split("T")[0],
+          opening_amount: openingBalance,
+        },
+      }),
+    );
+    if (errorBalance) {
+      console.error("Error inserting opening balance:", error);
+      return res
+        .status(500)
+        .json({ message: "Failed to upsert opening balance" });
+    }
+
+    return res.status(201).json({
+      message: "Opening balance insert successfully.",
+      date: upsertBalance,
+    });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ message: "Failed inserting opening balance." });
   }
 };
