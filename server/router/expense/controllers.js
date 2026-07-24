@@ -21,7 +21,7 @@ export const insertExpense = async (req, res) => {
       category: newExpense.category,
       advance: 0,
       amount: Number(newExpense.amount),
-      remaining_amount: 0,
+      remaining_amount: Number(newExpense.amount),
       payment_status: "partial",
       description: newExpense.description || null,
       bhada_details:

@@ -14,13 +14,24 @@ const today = new Date();
 const formatDate = (date) => date.toISOString().split("T")[0];
 
 const categoryColors = {
-  Food: "bg-green-100 text-green-800", 
+  Food: "bg-green-100 text-green-800",
   Repair: "bg-orange-100 text-orange-800",
   Commission: "bg-purple-100 text-purple-800",
   Salary: "bg-indigo-100 text-indigo-800",
   Advance: "bg-yellow-100 text-yellow-800",
   Bhada: "bg-pink-100 text-pink-800",
   "Market Fee": "bg-teal-100 text-teal-800",
+};
+
+const initialExpanseFields = {
+  category: "Food",
+  description: "",
+  person: "",
+  vehicle: "",
+  modi: "",
+  item: "",
+  amount: "",
+  date: "",
 };
 
 const ExpensePage = () => {
@@ -34,16 +45,7 @@ const ExpensePage = () => {
   );
   const [toDate, setToDate] = useState(formatDate(today));
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newExpense, setNewExpense] = useState({
-    category: "Food",
-    description: "",
-    person: "",
-    vehicle: "",
-    modi: "",
-    item: "",
-    amount: "",
-    date: "",
-  });
+  const [newExpense, setNewExpense] = useState(initialExpanseFields);
   const [employeesList, setemployeesList] = useState([]);
 
   // fetch expenses with filters
@@ -108,6 +110,7 @@ const ExpensePage = () => {
     }
   };
 
+  //* handlers
   const totalAmount = expenses.reduce((sum, e) => sum + e.amount, 0);
 
   const handleSaveExpense = async () => {
@@ -128,16 +131,7 @@ const ExpensePage = () => {
     client.cache.evict({ fieldName: "expense_expense_bills_aggregate" });
 
     client.cache.gc();
-    setNewExpense({
-      category: "Food",
-      description: "",
-      person: "",
-      vehicle: "",
-      modi: "",
-      item: "",
-      amount: "",
-      date: "",
-    });
+    setNewExpense(initialExpanseFields);
     setIsModalOpen(false);
     expenseRefetch();
   };
