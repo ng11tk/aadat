@@ -5,6 +5,8 @@ import { FETCH_EXPENSE_BILLS, FETCH_EMPLOYEES } from "../../graphql/query";
 import { useQuery, useMutation, useApolloClient } from "@apollo/client/react";
 import { promiseResolver } from "../../utils/promisResolver";
 import api from "../../lib/axios";
+import DateFilter from "../../components/dateFilter";
+import { formatDate } from "../../utils/time";
 
 const categoryColors = {
   Food: "bg-green-100 text-green-800",
@@ -16,7 +18,6 @@ const categoryColors = {
   "Market Fee": "bg-teal-100 text-teal-800",
 };
 const today = new Date();
-const formatDate = (date) => date.toISOString().split("T")[0];
 
 const formatCurrency = (v) => {
   if (v === undefined || v === null) return "₹0";
@@ -168,23 +169,6 @@ const ExpenseDetails = () => {
     }
   };
 
-  // quick filter
-  const applyQuickFilter = (mode) => {
-    setFilterMode(mode);
-    if (mode === "today") setFromDate(setToDate(formatDate(today)));
-    else if (mode === "thisWeek") {
-      const firstDay = new Date(today);
-      firstDay.setDate(today.getDate() - today.getDay());
-      setFromDate(formatDate(firstDay));
-      setToDate(formatDate(today));
-    } else if (mode === "thisMonth") {
-      setFromDate(
-        formatDate(new Date(today.getFullYear(), today.getMonth(), 1)),
-      );
-      setToDate(formatDate(today));
-    }
-  };
-
   return (
     <div className="p-6 bg-gray-50 min-h-screen text-gray-900">
       {/* Header */}
@@ -200,45 +184,12 @@ const ExpenseDetails = () => {
 
             <div className="flex-auto flex items-center gap-2 flex-wrap">
               {/* Quick filters */}
-              <div className="flex gap-2">
-                {[
-                  { k: "today", l: "Today" },
-                  { k: "thisWeek", l: "This Week" },
-                  { k: "thisMonth", l: "This Month" },
-                  { k: "custom", l: "Custom" },
-                ].map((mode) => (
-                  <button
-                    key={mode.k}
-                    onClick={() => applyQuickFilter(mode.k)}
-                    className={`px-3 py-1 rounded-md text-sm font-medium transition ${
-                      filterMode === mode.k
-                        ? "bg-emerald-600 text-white"
-                        : "bg-gray-50 text-gray-700 border border-gray-200 hover:bg-emerald-50"
-                    }`}
-                  >
-                    {mode.l}
-                  </button>
-                ))}
-              </div>
-
-              {/* Date range (visible only for custom) */}
-              {filterMode === "custom" && (
-                <div className="flex items-center gap-2">
-                  <input
-                    type="date"
-                    value={fromDate}
-                    onChange={(e) => setFromDate(e.target.value)}
-                    className="px-2 py-1 rounded-md border border-gray-300 text-sm"
-                  />
-                  <span className="text-sm text-gray-400">to</span>
-                  <input
-                    type="date"
-                    value={toDate}
-                    onChange={(e) => setToDate(e.target.value)}
-                    className="px-2 py-1 rounded-md border border-gray-300 text-sm"
-                  />
-                </div>
-              )}
+              <DateFilter
+                toDate={toDate}
+                setToDate={setToDate}
+                fromDate={fromDate}
+                setFromDate={setFromDate}
+              />
 
               {/* Person filter */}
               {["Salary", "Commission"].includes(expense.category) && (

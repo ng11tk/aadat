@@ -5,8 +5,8 @@ import { FETCH_SUPPLIER_DETAILS } from "../../graphql/query";
 import { useApolloClient, useQuery } from "@apollo/client/react";
 import { promiseResolver } from "../../utils/promisResolver";
 import api from "../../lib/axios";
-
-const formatDate = (date) => date.toISOString().split("T")[0];
+import DateFilter from "../../components/dateFilter";
+import { formatDate } from "../../utils/time";
 
 const SupplierDetails = () => {
   const today = new Date();
@@ -16,7 +16,6 @@ const SupplierDetails = () => {
   const [supplier, setSupplier] = useState<any>({});
   const [selectedTransactions, setSelectedTransactions] = useState({});
   const [modalTransaction, setModalTransaction] = useState(null);
-  const [filterMode, setFilterMode] = useState("thisMonth");
   const [statusFilter, setStatusFilter] = useState("all"); // ✅ new filter
   const [fromDate, setFromDate] = useState(
     formatDate(new Date(today.getFullYear(), today.getMonth(), 1)),
@@ -87,25 +86,6 @@ const SupplierDetails = () => {
     }
   }, [supplier_supplier]);
 
-  const applyQuickFilter = (mode: string) => {
-    setFilterMode(mode);
-    if (mode === "today") {
-      const d = formatDate(today);
-      setFromDate(d);
-      setToDate(d);
-    } else if (mode === "thisWeek") {
-      const firstDayOfWeek = new Date(today);
-      firstDayOfWeek.setDate(today.getDate() - today.getDay());
-      setFromDate(formatDate(firstDayOfWeek));
-      setToDate(formatDate(today));
-    } else if (mode === "thisMonth") {
-      setFromDate(
-        formatDate(new Date(today.getFullYear(), today.getMonth(), 1)),
-      );
-      setToDate(formatDate(today));
-    }
-  };
-
   // ✅ Filter by date + status
   const filteredTransactions = supplier?.transactions?.filter((t: any) => {
     const d = new Date(t.date);
@@ -172,10 +152,6 @@ const SupplierDetails = () => {
     setSelectedTransactions({});
   };
 
-  if (loading) {
-    return <div className="p-6">Loading...</div>;
-  }
-
   return (
     <div className="p-6 bg-gray-50 min-h-screen text-gray-900">
       {/* Supplier & Business Summary */}
@@ -206,46 +182,12 @@ const SupplierDetails = () => {
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3 mb-6">
-        {/* Date filters */}
-        <div className="flex gap-2">
-          {["today", "thisWeek", "thisMonth", "custom"].map((mode) => (
-            <button
-              key={mode}
-              onClick={() => applyQuickFilter(mode)}
-              className={`px-4 py-2 rounded-full border text-sm font-medium transition ${
-                filterMode === mode
-                  ? "bg-indigo-600 text-white border-indigo-600 shadow"
-                  : "bg-white border-gray-300 text-gray-700 hover:bg-gray-100"
-              }`}
-            >
-              {mode === "today"
-                ? "Today"
-                : mode === "thisWeek"
-                  ? "This Week"
-                  : mode === "thisMonth"
-                    ? "This Month"
-                    : "Custom"}
-            </button>
-          ))}
-        </div>
-
-        {/* Custom Date Range */}
-        {filterMode === "custom" && (
-          <div className="flex gap-2">
-            <input
-              type="date"
-              value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
-              className="input input-sm input-bordered bg-white"
-            />
-            <input
-              type="date"
-              value={toDate}
-              onChange={(e) => setToDate(e.target.value)}
-              className="input input-sm input-bordered bg-white"
-            />
-          </div>
-        )}
+        <DateFilter
+          toDate={toDate}
+          setToDate={setToDate}
+          fromDate={fromDate}
+          setFromDate={setFromDate}
+        />
 
         {/* Status Filter */}
         <div className="flex gap-2 ml-auto">
@@ -269,123 +211,128 @@ const SupplierDetails = () => {
         </div>
       </div>
 
+      {loading && <div className="p-6">Loading...</div>}
+      {!loading && error && <div className="p-6">Something went wrong!</div>}
       {/* Transactions Grid */}
-      <div className="grid md:grid-cols-3 gap-4">
-        {!filteredTransactions && <p>No, Items found.</p>}
-        {filteredTransactions?.map((t) => {
-          const info = selectedTransactions[t.id] || {
-            mode: "full",
-            amount: t.due,
-          };
-          const isPaid = t.due === 0;
+      {!loading && (
+        <div className="grid md:grid-cols-3 gap-4">
+          {!filteredTransactions.length && <p>No, Items found.</p>}
+          {filteredTransactions?.map((t) => {
+            const info = selectedTransactions[t.id] || {
+              mode: "full",
+              amount: t.due,
+            };
+            const isPaid = t.due === 0;
 
-          return (
-            <motion.div
-              key={t.id}
-              layout
-              whileHover={
-                !isPaid
-                  ? { y: -4, boxShadow: "0px 8px 16px rgba(0,0,0,0.1)" }
-                  : {}
-              }
-              className={`relative rounded-xl p-5 shadow-md border transition cursor-pointer ${
-                isPaid
-                  ? "bg-gradient-to-r from-indigo-50 to-indigo-100 border-indigo-300"
-                  : "bg-white border-gray-200"
-              }`}
-              onClick={() => setModalTransaction(t)}
-            >
-              {/* Status Tag */}
-              <div className="absolute top-2 right-2">
-                <span
-                  className={`px-3 py-1 text-xs font-semibold rounded-full ${
-                    isPaid
-                      ? "bg-indigo-600 text-white"
-                      : "bg-yellow-500 text-white"
-                  }`}
-                >
-                  {isPaid ? "Paid ✅" : "Unpaid ⚠️"}
-                </span>
-              </div>
+            return (
+              <motion.div
+                key={t.id}
+                layout
+                whileHover={
+                  !isPaid
+                    ? { y: -4, boxShadow: "0px 8px 16px rgba(0,0,0,0.1)" }
+                    : {}
+                }
+                className={`relative rounded-xl p-5 shadow-md border transition cursor-pointer ${
+                  isPaid
+                    ? "bg-gradient-to-r from-indigo-50 to-indigo-100 border-indigo-300"
+                    : "bg-white border-gray-200"
+                }`}
+                onClick={() => setModalTransaction(t)}
+              >
+                {/* Status Tag */}
+                <div className="absolute top-2 right-2">
+                  <span
+                    className={`px-3 py-1 text-xs font-semibold rounded-full ${
+                      isPaid
+                        ? "bg-indigo-600 text-white"
+                        : "bg-yellow-500 text-white"
+                    }`}
+                  >
+                    {isPaid ? "Paid ✅" : "Unpaid ⚠️"}
+                  </span>
+                </div>
 
-              <p className="font-semibold text-gray-800">{t.date}</p>
-              <p className="text-sm text-gray-600">Total: ₹{t.total}</p>
-              <p className="text-sm font-medium text-red-600">Due: ₹{t.due}</p>
+                <p className="font-semibold text-gray-800">{t.date}</p>
+                <p className="text-sm text-gray-600">Total: ₹{t.total}</p>
+                <p className="text-sm font-medium text-red-600">
+                  Due: ₹{t.due}
+                </p>
 
-              {/* Payment actions */}
-              {!isPaid && (
-                <div className="mt-3 space-y-2">
-                  <div className="flex gap-2">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        updateTransaction(t.id, "full");
-                      }}
-                      className={`flex-1 px-3 py-1 rounded-full text-sm font-medium ${
-                        info.mode === "full"
-                          ? "bg-indigo-500 text-white"
-                          : "bg-gray-100 text-gray-700 hover:bg-indigo-100"
-                      }`}
-                    >
-                      Full
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        updateTransaction(t.id, "partial", info.amount || 0);
-                      }}
-                      className={`flex-1 px-3 py-1 rounded-full text-sm font-medium ${
-                        info.mode === "partial"
-                          ? "bg-yellow-400 text-white"
-                          : "bg-gray-100 text-gray-700 hover:bg-yellow-100"
-                      }`}
-                    >
-                      Partial
-                    </button>
-                  </div>
-                  {info.mode === "partial" && !info.finalized && (
-                    <div className="flex gap-2 mt-2">
-                      <input
-                        type="number"
-                        min={0}
-                        max={t.due}
-                        value={info.amount || ""}
-                        onChange={(e) =>
-                          setSelectedTransactions((prev) => ({
-                            ...prev,
-                            [t.id]: {
-                              ...prev[t.id],
-                              amount: Number(e.target.value),
-                            },
-                          }))
-                        }
-                        className="flex-1 input input-sm input-bordered bg-white"
-                        placeholder="₹ Amount"
-                        onClick={(e) => e.stopPropagation()}
-                      />
+                {/* Payment actions */}
+                {!isPaid && (
+                  <div className="mt-3 space-y-2">
+                    <div className="flex gap-2">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          savePartial(t.id, info.amount, t.due);
+                          updateTransaction(t.id, "full");
                         }}
-                        className="btn btn-sm btn-primary"
+                        className={`flex-1 px-3 py-1 rounded-full text-sm font-medium ${
+                          info.mode === "full"
+                            ? "bg-indigo-500 text-white"
+                            : "bg-gray-100 text-gray-700 hover:bg-indigo-100"
+                        }`}
                       >
-                        ✔
+                        Full
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          updateTransaction(t.id, "partial", info.amount || 0);
+                        }}
+                        className={`flex-1 px-3 py-1 rounded-full text-sm font-medium ${
+                          info.mode === "partial"
+                            ? "bg-yellow-400 text-white"
+                            : "bg-gray-100 text-gray-700 hover:bg-yellow-100"
+                        }`}
+                      >
+                        Partial
                       </button>
                     </div>
-                  )}
-                  {info.mode === "partial" && info.finalized && (
-                    <p className="text-xs mt-1 text-orange-600 font-medium">
-                      Partial Paid: ₹{info.amount}
-                    </p>
-                  )}
-                </div>
-              )}
-            </motion.div>
-          );
-        })}
-      </div>
-
+                    {info.mode === "partial" && !info.finalized && (
+                      <div className="flex gap-2 mt-2">
+                        <input
+                          type="number"
+                          min={0}
+                          max={t.due}
+                          value={info.amount || ""}
+                          onChange={(e) =>
+                            setSelectedTransactions((prev) => ({
+                              ...prev,
+                              [t.id]: {
+                                ...prev[t.id],
+                                amount: Number(e.target.value),
+                              },
+                            }))
+                          }
+                          className="flex-1 input input-sm input-bordered bg-white"
+                          placeholder="₹ Amount"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            savePartial(t.id, info.amount, t.due);
+                          }}
+                          className="btn btn-sm btn-primary"
+                        >
+                          ✔
+                        </button>
+                      </div>
+                    )}
+                    {info.mode === "partial" && info.finalized && (
+                      <p className="text-xs mt-1 text-orange-600 font-medium">
+                        Partial Paid: ₹{info.amount}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </motion.div>
+            );
+          })}
+        </div>
+      )}
       {/* Total Selected Payable */}
       {Object.keys(selectedTransactions).length > 0 && (
         <div className="mt-6 bg-white shadow rounded-xl p-4 flex justify-between items-center border border-gray-200">

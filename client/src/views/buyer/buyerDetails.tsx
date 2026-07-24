@@ -5,8 +5,8 @@ import { useApolloClient, useQuery } from "@apollo/client/react";
 import { FETCH_BUYER_DETAILS } from "../../graphql/query";
 import { promiseResolver } from "../../utils/promisResolver";
 import api from "../../lib/axios";
-
-const formatDate = (date: Date) => date.toISOString().split("T")[0];
+import { formatDate } from "../../utils/time";
+import DateFilter from "../../components/dateFilter";
 
 const BuyerDetails = () => {
   const client = useApolloClient();
@@ -80,25 +80,6 @@ const BuyerDetails = () => {
     });
     setTransactions(t);
   }, [buyer_buyers_by_pk]);
-
-  const applyQuickFilter = (mode: string) => {
-    setFilterMode(mode);
-    if (mode === "today") {
-      const d = formatDate(today);
-      setFromDate(d);
-      setToDate(d);
-    } else if (mode === "thisWeek") {
-      const firstDayOfWeek = new Date(today);
-      firstDayOfWeek.setDate(today.getDate() - today.getDay());
-      setFromDate(formatDate(firstDayOfWeek));
-      setToDate(formatDate(today));
-    } else if (mode === "thisMonth") {
-      setFromDate(
-        formatDate(new Date(today.getFullYear(), today.getMonth(), 1)),
-      );
-      setToDate(formatDate(today));
-    }
-  };
 
   const filtered = transactions.filter((t) => {
     const d = new Date(t.date);
@@ -190,45 +171,12 @@ const BuyerDetails = () => {
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3 mb-6">
-        <div className="flex gap-2">
-          {["today", "thisWeek", "thisMonth", "custom"].map((mode) => (
-            <button
-              key={mode}
-              onClick={() => applyQuickFilter(mode)}
-              className={`px-4 py-2 rounded-full border text-sm font-medium transition ${
-                filterMode === mode
-                  ? "bg-indigo-600 text-white"
-                  : "bg-white border-gray-300 text-gray-700 hover:bg-gray-100"
-              }`}
-            >
-              {mode === "today"
-                ? "Today"
-                : mode === "thisWeek"
-                  ? "This Week"
-                  : mode === "thisMonth"
-                    ? "This Month"
-                    : "Custom"}
-            </button>
-          ))}
-        </div>
-
-        {filterMode === "custom" && (
-          <div className="flex gap-2">
-            <input
-              type="date"
-              value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
-              className="input input-sm input-bordered bg-white"
-            />
-            <input
-              type="date"
-              value={toDate}
-              onChange={(e) => setToDate(e.target.value)}
-              className="input input-sm input-bordered bg-white"
-            />
-          </div>
-        )}
-
+        <DateFilter
+          toDate={toDate}
+          setToDate={setToDate}
+          fromDate={fromDate}
+          setFromDate={setFromDate}
+        />
         <div className="flex gap-2 ml-auto">
           {["all", "paid", "unpaid"].map((status) => (
             <button

@@ -4,9 +4,10 @@ import { FETCH_AUDIT_DATA } from "../../graphql/query";
 import { promiseResolver } from "../../utils/promisResolver";
 import axios from "axios";
 import api from "../../lib/axios";
+import { formatDate } from "../../utils/time";
+import DateFilter from "../dateFilter";
 
 const today = new Date();
-const formatDate = (date) => date.toISOString().split("T")[0];
 
 const auditHeader = [
   { key: "date", label: "Date" },
@@ -25,7 +26,6 @@ const Audit = () => {
     formatDate(new Date(today.getFullYear(), today.getMonth(), 1)),
   );
   const [toDate, setToDate] = useState(formatDate(today));
-  const [filterMode, setFilterMode] = useState("thisMonth");
 
   const where = useMemo(() => {
     const w = {};
@@ -49,23 +49,6 @@ const Audit = () => {
   } = useQuery(FETCH_AUDIT_DATA, {
     variables: { where },
   });
-
-  // quick filter
-  const applyQuickFilter = (mode) => {
-    setFilterMode(mode);
-    if (mode === "today") setFromDate(setToDate(formatDate(today)));
-    else if (mode === "thisWeek") {
-      const firstDay = new Date(today);
-      firstDay.setDate(today.getDate() - today.getDay());
-      setFromDate(formatDate(firstDay));
-      setToDate(formatDate(today));
-    } else if (mode === "thisMonth") {
-      setFromDate(
-        formatDate(new Date(today.getFullYear(), today.getMonth(), 1)),
-      );
-      setToDate(formatDate(today));
-    }
-  };
 
   const mapAuditDataToTable = (data) => {
     if (!data || !data.audit) return [];
@@ -121,9 +104,6 @@ const Audit = () => {
     // alert(`Opening balance of ${openingBalance} fetched successfully.`);
   };
 
-  if (auditLoading) return <p>Loading...</p>;
-  if (auditError) return <p>Error: {auditError.message}</p>;
-
   return (
     <div className="min-h-screen bg-gray-50 p-6 pt-4">
       {/* Header */}
@@ -133,42 +113,12 @@ const Audit = () => {
       <div className="flex justify-between items-center">
         {/* Filters */}
         <div className="flex flex-wrap gap-3 mb-6 items-center">
-          {["today", "thisWeek", "thisMonth", "custom"].map((mode) => (
-            <button
-              key={mode}
-              onClick={() => applyQuickFilter(mode)}
-              className={`px-4 py-2 rounded-lg border text-sm font-medium shadow-sm transition ${
-                filterMode === mode
-                  ? "bg-emerald-600 text-white border-emerald-600"
-                  : "bg-white border-gray-300 text-gray-700 hover:bg-emerald-50"
-              }`}
-            >
-              {mode === "today"
-                ? "Today"
-                : mode === "thisWeek"
-                  ? "This Week"
-                  : mode === "thisMonth"
-                    ? "This Month"
-                    : "Custom"}
-            </button>
-          ))}
-
-          {filterMode === "custom" && (
-            <>
-              <input
-                type="date"
-                value={fromDate}
-                onChange={(e) => setFromDate(e.target.value)}
-                className="px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 shadow-sm"
-              />
-              <input
-                type="date"
-                value={toDate}
-                onChange={(e) => setToDate(e.target.value)}
-                className="px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 shadow-sm"
-              />
-            </>
-          )}
+          <DateFilter
+            toDate={toDate}
+            setToDate={setToDate}
+            fromDate={fromDate}
+            setFromDate={setFromDate}
+          />
         </div>
         <div className="flex justify-end mb-6">
           <button
@@ -180,33 +130,37 @@ const Audit = () => {
         </div>
       </div>
       {/* Audit Table */}
-      <div className="overflow-x-auto">
-        <table className="table">
-          {/* head */}
-          <thead>
-            <tr>
-              {auditHeader.map((header) => (
-                <th key={header.key}>{header.label}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {/* row 1 */}
-            {mapAuditDataToTable(auditData).map((row) => (
-              <tr key={row.key}>
-                <td>{row.date}</td>
-                <td>{row.opening_balance || 0}</td>
-                <td>{row.sales_amount || 0}</td>
-                <td>{row.borrowed_amount || 0}</td>
-                <td>{row.deposit_amount || 0}</td>
-                <td>{row.expense_amount || 0}</td>
-                <td>{row.payment_amount || 0}</td>
-                <td>{row.closing_balance || 0}</td>
+      {auditLoading && <p>Loading...</p>}
+      {!auditLoading && auditError && <p>Error: {auditError.message}</p>}
+      {!auditLoading && (
+        <div className="overflow-x-auto">
+          <table className="table">
+            {/* head */}
+            <thead>
+              <tr>
+                {auditHeader.map((header) => (
+                  <th key={header.key}>{header.label}</th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {/* row 1 */}
+              {mapAuditDataToTable(auditData).map((row) => (
+                <tr key={row.key}>
+                  <td>{row.date}</td>
+                  <td>{row.opening_balance || 0}</td>
+                  <td>{row.sales_amount || 0}</td>
+                  <td>{row.borrowed_amount || 0}</td>
+                  <td>{row.deposit_amount || 0}</td>
+                  <td>{row.expense_amount || 0}</td>
+                  <td>{row.payment_amount || 0}</td>
+                  <td>{row.closing_balance || 0}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 };

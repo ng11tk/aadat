@@ -9,9 +9,10 @@ import {
 } from "../../graphql/query";
 import { useNavigate } from "react-router-dom";
 import api from "../../lib/axios";
+import DateFilter from "../../components/dateFilter";
+import { formatDate } from "../../utils/time";
 
 const today = new Date();
-const formatDate = (date) => date.toISOString().split("T")[0];
 
 const categoryColors = {
   Food: "bg-green-100 text-green-800",
@@ -93,23 +94,6 @@ const ExpensePage = () => {
     setExpenses(newExpenses);
   }, [expenseData]);
 
-  // quick filter
-  const applyQuickFilter = (mode) => {
-    setFilterMode(mode);
-    if (mode === "today") setFromDate(setToDate(formatDate(today)));
-    else if (mode === "thisWeek") {
-      const firstDay = new Date(today);
-      firstDay.setDate(today.getDate() - today.getDay());
-      setFromDate(formatDate(firstDay));
-      setToDate(formatDate(today));
-    } else if (mode === "thisMonth") {
-      setFromDate(
-        formatDate(new Date(today.getFullYear(), today.getMonth(), 1)),
-      );
-      setToDate(formatDate(today));
-    }
-  };
-
   //* handlers
   const totalAmount = expenses.reduce((sum, e) => sum + e.amount, 0);
 
@@ -151,42 +135,12 @@ const ExpensePage = () => {
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 mb-6 items-center">
-        {["today", "thisWeek", "thisMonth", "custom"].map((mode) => (
-          <button
-            key={mode}
-            onClick={() => applyQuickFilter(mode)}
-            className={`px-4 py-2 rounded-lg border text-sm font-medium shadow-sm transition ${
-              filterMode === mode
-                ? "bg-emerald-600 text-white border-emerald-600"
-                : "bg-white border-gray-300 text-gray-700 hover:bg-emerald-50"
-            }`}
-          >
-            {mode === "today"
-              ? "Today"
-              : mode === "thisWeek"
-                ? "This Week"
-                : mode === "thisMonth"
-                  ? "This Month"
-                  : "Custom"}
-          </button>
-        ))}
-
-        {filterMode === "custom" && (
-          <>
-            <input
-              type="date"
-              value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
-              className="px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 shadow-sm"
-            />
-            <input
-              type="date"
-              value={toDate}
-              onChange={(e) => setToDate(e.target.value)}
-              className="px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 shadow-sm"
-            />
-          </>
-        )}
+        <DateFilter
+          toDate={toDate}
+          setToDate={setToDate}
+          fromDate={fromDate}
+          setFromDate={setFromDate}
+        />
       </div>
 
       {/* Summary */}
