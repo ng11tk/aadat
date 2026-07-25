@@ -52,7 +52,7 @@ function App() {
               <Route path="/signup" element={<SignUp />} />
               <Route path="/login" element={<LoginPage />} />
               <Route
-                path="/"
+                path="/dashboard"
                 element={
                   <ProtectedRoute>
                     <SalesDashboard />
@@ -60,7 +60,7 @@ function App() {
                 }
               />
               <Route
-                path="/opening"
+                path="/openings"
                 element={
                   <ProtectedRoute>
                     <OpeningStock />
@@ -84,7 +84,7 @@ function App() {
                 }
               />
               <Route
-                path="/supplier"
+                path="/suppliers"
                 element={
                   <ProtectedRoute>
                     <SupplierDashboard />
@@ -100,7 +100,7 @@ function App() {
                 }
               />
               <Route
-                path="/buyer"
+                path="/buyers"
                 element={
                   <ProtectedRoute>
                     <BuyerDashboard />
@@ -116,7 +116,7 @@ function App() {
                 }
               />
               <Route
-                path="/expense"
+                path="/expenses"
                 element={
                   <ProtectedRoute>
                     <ExpensePage />
@@ -124,7 +124,7 @@ function App() {
                 }
               />
               <Route
-                path="/expense/:name"
+                path="/expenses/:name"
                 element={
                   <ProtectedRoute>
                     <ExpenseDetails />

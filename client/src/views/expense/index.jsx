@@ -166,7 +166,7 @@ const ExpensePage = () => {
             className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden transition"
             onClick={() =>
               navigate(
-                `/expense/${encodeURIComponent(exp.category.toLowerCase())}`,
+                `/expenses/${encodeURIComponent(exp.category.toLowerCase())}`,
                 {
                   state: { expense: exp },
                 },

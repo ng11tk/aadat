@@ -7,7 +7,7 @@ const DateFilter = ({ fromDate, setFromDate, toDate, setToDate }) => {
   const location = useLocation();
 
   const selectButtonColor =
-    location.pathname.includes(["/expense"]) ||
+    location.pathname.includes(["/expenses"]) ||
     location.pathname.includes(["/audit"])
       ? "emerald"
       : "indigo";

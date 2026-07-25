@@ -18,12 +18,12 @@ const Navbar = () => {
   };
 
   const navLinks = [
-    { path: "/", label: "Dashboard" },
-    { path: "/opening", label: "Opening" },
+    { path: "/dashboard", label: "Dashboard" },
+    { path: "/openings", label: "Opening" },
     { path: "/sales", label: "Sales" },
-    { path: "/buyer", label: "Buyer" },
-    { path: "/supplier", label: "Supplier" },
-    { path: "/expense", label: "Expense" },
+    { path: "/buyers", label: "Buyer" },
+    { path: "/suppliers", label: "Supplier" },
+    { path: "/expenses", label: "Expense" },
     { path: "/audit", label: "Audit" },
   ];
 
@@ -43,19 +43,21 @@ const Navbar = () => {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-1">
-            {navLinks.map((link) => (
-              <Link
-                key={link.path}
-                to={link.path}
-                className={`px-3 py-2 rounded-md text-sm font-medium transition ${
-                  location.pathname === link.path
-                    ? "bg-emerald-100 text-emerald-600 font-semibold"
-                    : "text-gray-700 hover:bg-emerald-50 hover:text-emerald-600"
-                }`}
-              >
-                {link.label}
-              </Link>
-            ))}
+            {navLinks.map((link) => {
+              return (
+                <Link
+                  key={link.path}
+                  to={link.path}
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition ${
+                    location.pathname.includes(link.path)
+                      ? "bg-emerald-100 text-emerald-600 font-semibold"
+                      : "text-gray-700 hover:bg-emerald-50 hover:text-emerald-600"
+                  }`}
+                >
+                  {link.label}
+                </Link>
+              );
+            })}
           </div>
 
           {/* Right side - Profile & Mobile toggle */}
