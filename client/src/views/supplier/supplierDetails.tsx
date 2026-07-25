@@ -7,6 +7,7 @@ import { promiseResolver } from "../../utils/promisResolver";
 import api from "../../lib/axios";
 import DateFilter from "../../components/dateFilter";
 import { today, formatDate } from "../../utils/time";
+import PaymentStatusFilter from "../../components/paymentStatusFilter";
 
 const SupplierDetails = () => {
   const location = useLocation();
@@ -15,7 +16,7 @@ const SupplierDetails = () => {
   const [supplier, setSupplier] = useState<any>({});
   const [selectedTransactions, setSelectedTransactions] = useState({});
   const [modalTransaction, setModalTransaction] = useState(null);
-  const [statusFilter, setStatusFilter] = useState("all"); // ✅ new filter
+  const [statusFilter, setStatusFilter] = useState("partial"); // ✅ new filter
   const [fromDate, setFromDate] = useState(
     formatDate(new Date(today.getFullYear(), today.getMonth(), 1)),
   );
@@ -59,7 +60,7 @@ const SupplierDetails = () => {
       const formattedSupplier = {
         id: s.id,
         name: s.name,
-        contact: s.phone, 
+        contact: s.phone,
         address: s.address,
         totalSale: s.supplier_unloadings_aggregate?.aggregate?.sum?.amount || 0,
         totalDue:
@@ -94,7 +95,7 @@ const SupplierDetails = () => {
     const statusMatch =
       statusFilter === "all" ||
       (statusFilter === "paid" && t.due === 0) ||
-      (statusFilter === "unpaid" && t.due > 0);
+      (statusFilter === "partial" && t.due > 0);
     return withinDate && statusMatch;
   });
 
@@ -191,25 +192,10 @@ const SupplierDetails = () => {
         />
 
         {/* Status Filter */}
-        <div className="flex gap-2 ml-auto">
-          {["all", "paid", "unpaid"].map((status) => (
-            <button
-              key={status}
-              onClick={() => setStatusFilter(status)}
-              className={`px-4 py-2 rounded-full border text-sm font-medium transition ${
-                statusFilter === status
-                  ? status === "paid"
-                    ? "bg-indigo-600 text-white border-indigo-600 shadow"
-                    : status === "unpaid"
-                      ? "bg-red-500 text-white border-red-500 shadow"
-                      : "bg-indigo-600 text-white border-indigo-600 shadow"
-                  : "bg-white border-gray-300 text-gray-700 hover:bg-gray-100"
-              }`}
-            >
-              {status === "all" ? "All" : status === "paid" ? "Paid" : "Unpaid"}
-            </button>
-          ))}
-        </div>
+        <PaymentStatusFilter
+          statusFilter={statusFilter}
+          setStatusFilter={setStatusFilter}
+        />
       </div>
 
       {loading && <div className="p-6">Loading...</div>}

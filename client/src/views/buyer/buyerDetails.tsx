@@ -7,6 +7,7 @@ import { promiseResolver } from "../../utils/promisResolver";
 import api from "../../lib/axios";
 import { formatDate } from "../../utils/time";
 import DateFilter from "../../components/dateFilter";
+import PaymentStatusFilter from "../../components/paymentStatusFilter";
 
 const BuyerDetails = () => {
   const client = useApolloClient();
@@ -16,7 +17,6 @@ const BuyerDetails = () => {
   const [buyer, setBuyer] = useState<any>(buyerFromState);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [modalTransaction, setModalTransaction] = useState<any | null>(null);
-  const [filterMode, setFilterMode] = useState("thisMonth");
   const [fromDate, setFromDate] = useState(
     formatDate(new Date(today.getFullYear(), today.getMonth(), 1)),
   );
@@ -87,7 +87,7 @@ const BuyerDetails = () => {
     const statusMatch =
       statusFilter === "all" ||
       (statusFilter === "paid" && t.due === 0) ||
-      (statusFilter === "unpaid" && t.due > 0);
+      (statusFilter === "partial" && t.due > 0);
     return withinDate && statusMatch;
   });
 
@@ -177,21 +177,10 @@ const BuyerDetails = () => {
           fromDate={fromDate}
           setFromDate={setFromDate}
         />
-        <div className="flex gap-2 ml-auto">
-          {["all", "paid", "unpaid"].map((status) => (
-            <button
-              key={status}
-              onClick={() => setStatusFilter(status)}
-              className={`px-4 py-2 rounded-full border text-sm font-medium transition ${
-                statusFilter === status
-                  ? "bg-indigo-600 text-white"
-                  : "bg-white border-gray-300 text-gray-700 hover:bg-gray-100"
-              }`}
-            >
-              {status === "all" ? "All" : status === "paid" ? "Paid" : "Unpaid"}
-            </button>
-          ))}
-        </div>
+        <PaymentStatusFilter
+          statusFilter={statusFilter}
+          setStatusFilter={setStatusFilter}
+        />
       </div>
 
       {/* Transactions Grid */}
@@ -230,7 +219,7 @@ const BuyerDetails = () => {
                         : "bg-yellow-500 text-white"
                     }`}
                   >
-                    {isPaid ? "Paid ✅" : "Unpaid ⚠️"}
+                    {isPaid ? "Paid ✅" : "Partial ⚠️"}
                   </span>
                 </div>
 

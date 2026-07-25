@@ -7,14 +7,15 @@ import { promiseResolver } from "../../utils/promisResolver";
 import { FETCH_BUYERS_LIST } from "../../graphql/query";
 import { useDebounce } from "../../utils/debounce";
 import api from "../../lib/axios";
-``;
+import PaymentStatusFilter from "../../components/paymentStatusFilter";
+
 const BuyerDashboard = () => {
   const navigate = useNavigate();
   const client = useApolloClient();
 
   // modal state
   const [buyerFilter, setBuyerFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("partial");
   const [buyers, setBuyers] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newBuyer, setNewBuyer] = useState({ name: "", contact: "" });
@@ -52,8 +53,7 @@ const BuyerDashboard = () => {
     );
   }, [fetchedBuyers]);
 
-  // handlers
-
+  //* handlers
   const handleSaveBuyer = async () => {
     // basic validation
     if (!newBuyer.name || !newBuyer.contact) return;
@@ -137,22 +137,10 @@ const BuyerDashboard = () => {
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3 mb-6">
         {/* Payment Status Filter */}
-        <div className="flex gap-2">
-          {["all", "paid", "partial"].map((status) => (
-            <button
-              key={status}
-              onClick={() => setStatusFilter(status)}
-              className={`px-4 py-1 rounded-full text-sm font-medium transition
-          ${
-            statusFilter === status
-              ? "bg-indigo-600 text-white shadow"
-              : "bg-white border border-gray-300 text-gray-700 hover:bg-indigo-50"
-          }`}
-            >
-              {status.toUpperCase()}
-            </button>
-          ))}
-        </div>
+        <PaymentStatusFilter
+          statusFilter={statusFilter}
+          setStatusFilter={setStatusFilter}
+        />
 
         <input
           type="text"
