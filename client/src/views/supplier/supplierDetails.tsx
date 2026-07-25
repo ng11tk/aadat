@@ -6,10 +6,9 @@ import { useApolloClient, useQuery } from "@apollo/client/react";
 import { promiseResolver } from "../../utils/promisResolver";
 import api from "../../lib/axios";
 import DateFilter from "../../components/dateFilter";
-import { formatDate } from "../../utils/time";
+import { today, formatDate } from "../../utils/time";
 
 const SupplierDetails = () => {
-  const today = new Date();
   const location = useLocation();
   const client = useApolloClient();
   const suppliers = location.state?.supplier || {};
@@ -23,8 +22,10 @@ const SupplierDetails = () => {
   const [toDate, setToDate] = useState(formatDate(today));
 
   // where filter for supplier details
-  const whereSupplierUnloadingsDetails = useMemo(() => {
-    const w = {};
+  const whereSupplierUnloadingDetails = useMemo(() => {
+    const w = {
+      unloading_date: {},
+    };
 
     if (!fromDate && toDate) {
       w.unloading_date = { _eq: toDate };
@@ -46,7 +47,7 @@ const SupplierDetails = () => {
   } = useQuery(FETCH_SUPPLIER_DETAILS, {
     variables: {
       where: { id: { _eq: suppliers.id } },
-      whereSupplierUnloading: whereSupplierUnloadingsDetails,
+      whereSupplierUnloading: whereSupplierUnloadingDetails,
     },
     // fetchPolicy: "network-only",
   });
@@ -58,7 +59,7 @@ const SupplierDetails = () => {
       const formattedSupplier = {
         id: s.id,
         name: s.name,
-        contact: s.phone,
+        contact: s.phone, 
         address: s.address,
         totalSale: s.supplier_unloadings_aggregate?.aggregate?.sum?.amount || 0,
         totalDue:
@@ -216,7 +217,7 @@ const SupplierDetails = () => {
       {/* Transactions Grid */}
       {!loading && (
         <div className="grid md:grid-cols-3 gap-4">
-          {!filteredTransactions.length && <p>No, Items found.</p>}
+          {!filteredTransactions?.length && <p>No, Items found.</p>}
           {filteredTransactions?.map((t) => {
             const info = selectedTransactions[t.id] || {
               mode: "full",
