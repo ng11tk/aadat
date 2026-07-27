@@ -1,6 +1,7 @@
 import axios from "axios";
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { BASE_URL } from "../constants/api";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -20,21 +21,21 @@ export default function Login() {
 
     try {
       const res = await axios.post(
-        "http://localhost:3000/server/auth/login",
+        BASE_URL + "/auth/login",
         {
           email,
           password,
           remember,
         },
-        { withCredentials: true } // ✅ send & receive cookies
+        { withCredentials: true }, // ✅ send & receive cookies
       );
 
       console.log("✅ Login Success:", res.data);
-      navigate("/");
+      navigate("/dashboard");
     } catch (err) {
       console.error("❌ Login Error:", err.response?.data || err.message);
       setError(
-        err.response?.data?.message || "Login failed. Please try again."
+        err.response?.data?.message || "Login failed. Please try again.",
       );
     } finally {
       setLoading(false);

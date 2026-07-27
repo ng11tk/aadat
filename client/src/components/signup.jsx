@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
+import { BASE_URL } from "../constants/api";
 
 export default function SignUp() {
   const navigate = useNavigate();
@@ -39,13 +40,13 @@ export default function SignUp() {
 
     try {
       const res = await axios.post(
-        "http://localhost:3000/server/auth/signup",
+        BASE_URL + "/auth/signup",
         {
           name: formData.name,
           email: formData.email,
           password: formData.password,
         },
-        { withCredentials: true }
+        { withCredentials: true },
       );
       setSuccess(res.data.message || "Account created successfully!");
       setFormData({
