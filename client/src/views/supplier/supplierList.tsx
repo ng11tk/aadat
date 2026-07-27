@@ -1,16 +1,16 @@
-import React, { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import { Plus } from "lucide-react";
-import { motion } from "framer-motion";
+import React, { useState, useEffect } from "react";
+import { Plus, Search, Filter } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useApolloClient, useQuery } from "@apollo/client/react";
 import { FETCH_SUPPLIERS_AGGREGATE } from "../../graphql/query";
 import { useDebounce } from "../../utils/debounce";
 import api from "../../lib/axios";
 import { promiseResolver } from "../../utils/promisResolver";
 import PaymentStatusFilter from "../../components/paymentStatusFilter";
+import AddSupplier from "./components/modals/addSupplier";
+import SupplierCard from "./components/supplierCard";
 
 const SupplierDashboard = () => {
-  const navigate = useNavigate();
   const client = useApolloClient();
   const [supplierFromDatabase, setSuppliersFromDatabase] = useState([]);
   const [supplierFilter, setSupplierFilter] = useState("");
@@ -22,7 +22,6 @@ const SupplierDashboard = () => {
     contact: "",
     type: "supplier",
   });
-  const [errors, setErrors] = useState({ contact: "" });
   const [insertSupplierLoading, setInsertSupplierLoading] = useState(false);
 
   const debouncedSupplierFilter = useDebounce(supplierFilter, 400);
@@ -57,21 +56,14 @@ const SupplierDashboard = () => {
     setSuppliersFromDatabase(formatted);
   }, [data]);
 
+  //* handlers
   const handleSaveSupplier = async () => {
     // final validation
-    const digits = (newSupplier.contact || "").replace(/\D/g, "");
-
     if (!newSupplier.supplier) {
       return;
     }
-    if (!digits) {
-      setErrors((s) => ({ ...s, contact: "Contact is required" }));
-      return;
-    }
-    if (digits.length < 10) {
-      setErrors((s) => ({ ...s, contact: "Enter at least 10 digits" }));
-      return;
-    }
+
+    const digits = (newSupplier.contact || "").replace(/\D/g, "");
 
     const customObject = {
       name: newSupplier.supplier,
@@ -120,225 +112,163 @@ const SupplierDashboard = () => {
   const totalDue = totalAmount - totalPaid;
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen text-gray-900">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       {/* Header */}
-      <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
-        <h1 className="text-2xl font-bold text-gray-800">Supplier Dashboard</h1>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white font-semibold shadow hover:bg-indigo-700 transition"
-        >
-          <Plus className="w-5 h-5" /> Add Supplier
-        </button>
-      </div>
-
-      {/* Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <motion.div
-          whileHover={{ y: -3 }}
-          className="bg-white shadow rounded-xl p-5 border border-gray-200"
-        >
-          <p className="text-gray-500 text-sm">Total Purchases</p>
-          <h2 className="text-xl font-bold text-indigo-600">₹{totalAmount}</h2>
-        </motion.div>
-
-        <motion.div
-          whileHover={{ y: -3 }}
-          className="bg-white shadow rounded-xl p-5 border border-gray-200"
-        >
-          <p className="text-gray-500 text-sm">Total Paid</p>
-          <h2 className="text-xl font-bold text-indigo-600">₹{totalPaid}</h2>
-        </motion.div>
-
-        <motion.div
-          whileHover={{ y: -3 }}
-          className="bg-white shadow rounded-xl p-5 border border-gray-200"
-        >
-          <p className="text-gray-500 text-sm">Total Due</p>
-          <h2 className="text-xl font-bold text-red-600">₹{totalDue}</h2>
-        </motion.div>
-      </div>
-
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3 mb-6 w-full">
-        {/* Payment Status Filter */}
-        <PaymentStatusFilter
-          statusFilter={statusFilter}
-          setStatusFilter={setStatusFilter}
-        />
-
-        {/* Supplier Type Filter */}
-        <div className="flex gap-2">
-          {[
-            { key: "all", label: "All" },
-            { key: "supplier", label: "Supplier" },
-            { key: "modi", label: "Modi" },
-          ].map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setTypeFilter(t.key)}
-              className={`px-4 py-1 rounded-full text-sm font-medium transition
-          ${
-            typeFilter === t.key
-              ? "bg-indigo-600 text-white shadow"
-              : "bg-white border border-gray-300 text-gray-700 hover:bg-indigo-50"
-          }`}
+      <div className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                <span className="text-white font-bold text-lg">S</span>
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-gray-900">
+                  Supplier Dashboard
+                </h1>
+                <p className="text-xs text-gray-500">
+                  Manage & track suppliers
+                </p>
+              </div>
+            </div>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setIsModalOpen(true)}
+              className="flex items-center gap-2 px-5 py-2 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700 transition text-sm flex-shrink-0"
             >
-              {t.label.toUpperCase()}
-            </button>
-          ))}
+              <Plus className="w-4 h-4" /> Add
+            </motion.button>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            whileHover={{ y: -5 }}
+            className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-lg transition"
+          >
+            <p className="text-gray-600 text-sm font-medium mb-2">
+              Total Purchases
+            </p>
+            <h2 className="text-3xl font-bold text-indigo-600">
+              ₹{totalAmount.toLocaleString()}
+            </h2>
+            <p className="text-xs text-gray-400 mt-2">
+              From {supplierFromDatabase.length} suppliers
+            </p>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            whileHover={{ y: -5 }}
+            className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-lg transition"
+          >
+            <p className="text-gray-600 text-sm font-medium mb-2">Total Paid</p>
+            <h2 className="text-3xl font-bold text-emerald-600">
+              ₹{totalPaid.toLocaleString()}
+            </h2>
+            <p className="text-xs text-gray-400 mt-2">
+              {((totalPaid / totalAmount) * 100 || 0).toFixed(1)}% paid
+            </p>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            whileHover={{ y: -5 }}
+            className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-lg transition"
+          >
+            <p className="text-gray-600 text-sm font-medium mb-2">Total Due</p>
+            <h2 className="text-3xl font-bold text-red-600">
+              ₹{totalDue.toLocaleString()}
+            </h2>
+            <p className="text-xs text-gray-400 mt-2">
+              {((totalDue / totalAmount) * 100 || 0).toFixed(1)}% pending
+            </p>
+          </motion.div>
         </div>
 
-        {/* Search */}
-        <input
-          type="text"
-          placeholder="Search supplier"
-          value={supplierFilter}
-          onChange={(e) => setSupplierFilter(e.target.value)}
-          className="ml-auto px-3 py-2 border rounded-lg text-gray-700 bg-white shadow-sm w-64"
-        />
-      </div>
+        {/* Filters Section */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <Filter className="w-4 h-4 text-indigo-600" />
+            <h3 className="text-sm font-semibold text-gray-700">Filters</h3>
+          </div>
 
-      {/* Supplier Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {loading && supplierFromDatabase.length === 0 && (
-          <p className="text-gray-500 italic">Loading...</p>
-        )}
+          <div className="flex flex-col lg:flex-row gap-3 items-start lg:items-center lg:justify-between">
+            {/* Payment Status Filter */}
+            <div className="w-full lg:w-auto">
+              <PaymentStatusFilter
+                statusFilter={statusFilter}
+                setStatusFilter={setStatusFilter}
+              />
+            </div>
 
-        {!loading && supplierFromDatabase.length === 0 && (
-          <p className="text-gray-500 italic">No suppliers found</p>
-        )}
-
-        {supplierFromDatabase.map((p) => {
-          const due = (p.total || 0) - (p.paid || 0);
-          const status = due === 0 ? "paid" : "partial";
-
-          return (
-            <motion.div
-              key={p.id}
-              whileHover={{
-                y: -3,
-                boxShadow: "0px 8px 18px rgba(0,0,0,0.08)",
-              }}
-              className={`relative rounded-xl p-5 transition-all border cursor-pointer ${
-                status === "paid"
-                  ? "bg-indigo-50 border-indigo-200"
-                  : status === "partial"
-                    ? "bg-orange-50 border-orange-200"
-                    : "bg-red-50 border-red-200"
-              }`}
-              onClick={() =>
-                navigate(`/suppliers/${encodeURIComponent(p.supplier)}`, {
-                  state: { supplier: p },
-                })
-              }
-            >
-              <div className="flex justify-between items-center">
-                <h2 className="text-lg font-semibold text-gray-800">
-                  {p.supplier}
-                </h2>
-                <span
-                  className={`badge text-white ${
-                    status === "paid"
-                      ? "badge-primary"
-                      : status === "partial"
-                        ? "badge-warning"
-                        : "badge-error"
+            {/* Supplier Type Filter */}
+            <div className="flex gap-2 w-full lg:w-auto">
+              {[
+                { key: "all", label: "All Types" },
+                { key: "supplier", label: "Supplier" },
+                { key: "modi", label: "Modi" },
+              ].map((t) => (
+                <motion.button
+                  key={t.key}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setTypeFilter(t.key)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap ${
+                    typeFilter === t.key
+                      ? "bg-indigo-600 text-white shadow-md"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                   }`}
                 >
-                  {status.toUpperCase()}
-                </span>
-              </div>
+                  {t.label}
+                </motion.button>
+              ))}
+            </div>
 
-              <p className="text-sm text-gray-600">Total: ₹{p.total}</p>
-              <p className="text-sm text-gray-600">Paid: ₹{p.total - due}</p>
-              <p className="text-sm text-gray-600">Due: ₹{due}</p>
-              <p className="text-xs text-gray-400 italic">Type: {p.type}</p>
-            </motion.div>
-          );
-        })}
+            {/* Search */}
+            <div className="relative w-full lg:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search supplier..."
+                value={supplierFilter}
+                onChange={(e) => setSupplierFilter(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Supplier Cards */}
+        <AnimatePresence>
+          <SupplierCard
+            loading={loading}
+            supplierFromDatabase={supplierFromDatabase}
+          />
+        </AnimatePresence>
       </div>
 
       {/* Add Supplier Modal */}
-      {isModalOpen && (
-        <dialog open className="modal modal-open">
-          <div className="modal-box max-w-md">
-            <h3 className="font-bold text-lg mb-4">Add New Supplier</h3>
-            <div className="space-y-3">
-              <input
-                type="text"
-                placeholder="Supplier Name"
-                className="input input-bordered w-full"
-                value={newSupplier.supplier}
-                onChange={(e) =>
-                  setNewSupplier({ ...newSupplier, supplier: e.target.value })
-                }
-              />
-              <input
-                type="text"
-                inputMode="tel"
-                placeholder="Contact"
-                className="input input-bordered w-full"
-                value={newSupplier.contact}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setNewSupplier({ ...newSupplier, contact: v });
-                  // validate immediately
-                  const digits = (v || "").replace(/\D/g, "");
-                  if (!digits)
-                    setErrors((s) => ({
-                      ...s,
-                      contact: "Contact is required",
-                    }));
-                  else if (digits.length < 10)
-                    setErrors((s) => ({
-                      ...s,
-                      contact: "Enter at least 10 digits",
-                    }));
-                  else if (digits.length > 10)
-                    setErrors((s) => ({ ...s, contact: "Too many digits" }));
-                  else setErrors((s) => ({ ...s, contact: "" }));
-                }}
-              />
-              {errors.contact && (
-                <p className="text-xs text-red-600 mt-1">{errors.contact}</p>
-              )}
-              <select
-                value={newSupplier.type}
-                onChange={(e) =>
-                  setNewSupplier({ ...newSupplier, type: e.target.value })
-                }
-                className="select select-bordered w-full"
-              >
-                <option value="supplier">Supplier</option>
-                <option value="modi">Modi</option>
-              </select>
-            </div>
-            <div className="modal-action">
-              <button
-                className="btn btn-outline"
-                onClick={() => setIsModalOpen(false)}
-              >
-                Cancel
-              </button>
-              <button
-                className={`btn btn-primary ${
-                  insertSupplierLoading ? "opacity-50" : ""
-                }`}
-                onClick={handleSaveSupplier}
-                disabled={
-                  insertSupplierLoading ||
-                  !!errors.contact ||
-                  !newSupplier.supplier ||
-                  !newSupplier.contact
-                }
-              >
-                {insertSupplierLoading ? "Saving..." : "Save"}
-              </button>
-            </div>
-          </div>
-        </dialog>
-      )}
+      <AnimatePresence>
+        {isModalOpen && (
+          <AddSupplier
+            setIsModalOpen={setIsModalOpen}
+            newSupplier={newSupplier}
+            setNewSupplier={setNewSupplier}
+            insertSupplierLoading={insertSupplierLoading}
+            handleSaveSupplier={handleSaveSupplier}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

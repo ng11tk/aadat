@@ -107,15 +107,20 @@ export const FETCH_SUPPLIERS_AGGREGATE = gql`
 
 export const FETCH_SUPPLIER_DETAILS = gql`
   query FETCH_SUPPLIER_DETAILS(
-    $where: supplier_supplier_bool_exp = {}
     $whereSupplierUnloading: supplier_supplier_unloading_bool_exp = {}
+    $id: uuid = ""
+    $name: String = ""
+    $phone: String = ""
   ) {
-    supplier_supplier(where: $where) {
+    supplier_supplier_by_pk(id: $id, name: $name, phone: $phone) {
       id
       name
       phone
       address
-      supplier_unloadings_aggregate(where: $whereSupplierUnloading) {
+      supplier_unloadings_aggregate(
+        where: $whereSupplierUnloading
+        order_by: { unloading_date: desc_nulls_first }
+      ) {
         aggregate {
           sum {
             amount
