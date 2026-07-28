@@ -1,15 +1,19 @@
 import jwt from "jsonwebtoken";
-import dotenv from "dotenv";
-dotenv.config();
+// dotenv.config() should be called once in your app entry point (index.js),
+// not here.
 
 /**
- * Middleware to protect routes that require authentication
- * Verifies JWT token from cookies and attaches user to request
+ * Middleware to protect routes that require authentication.
+ * Verifies the access token JWT from cookies and attaches the decoded
+ * payload (id, email) to req.user.
+ *
+ * Note: this only proves the token is validly signed and unexpired — it
+ * does NOT check that the user still exists or hasn't been banned/deleted.
+ * That's an accepted tradeoff for stateless access tokens; it's why the
+ * access token TTL should stay short (e.g. 15 min).
  */
-
 const protectedRoute = async (req, res, next) => {
   try {
-    // Get token from cookies
     const token = req.cookies.accessToken;
 
     if (!token) {
@@ -19,22 +23,17 @@ const protectedRoute = async (req, res, next) => {
       });
     }
 
-    // Verify token
     const decoded = jwt.verify(token, process.env.JWT_ACCESS_TOKEN_SECRET_KEY);
-    // this verify both user existence and token validity
-    if (!decoded) {
+
+    if (!decoded?.id) {
       return res.status(401).json({
         success: false,
         message: "Invalid token.",
       });
     }
 
-    // Find user by id from token
-    const user = decoded;
-    // Attach user to request object
-    req.user = user;
+    req.user = decoded; // { id, email } — keep this payload minimal at signing time
 
-    // Proceed to next middleware or route handler
     next();
   } catch (error) {
     if (error.name === "JsonWebTokenError") {
@@ -51,10 +50,10 @@ const protectedRoute = async (req, res, next) => {
       });
     }
 
+    console.error("Auth middleware error:", error);
     return res.status(500).json({
       success: false,
       message: "Authentication failed.",
-      error: error.message,
     });
   }
 };

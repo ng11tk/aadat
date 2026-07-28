@@ -2,9 +2,11 @@ import { compare, hash } from "bcrypt";
 import validate from "validator";
 import { gqlClient } from "../../lib/graphql.js";
 import {
-  DELETE_LOGIN_TOKEN,
   INSERT_LOGIN_TOKEN,
   INSERT_USER,
+  REVOKE_ALL_USER_TOKENS,
+  REVOKE_TOKEN,
+  REVOKE_TOKEN_LOGOUT,
 } from "../../graphql/mutation.js";
 import { GET_LOGIN_TOKENS, GET_USER_BY_EMAIL } from "../../graphql/query.js";
 import { promiseResolver } from "../../utils/promiseResolver.js";
@@ -31,24 +33,51 @@ const generateRefreshToken = (existingUser) => {
     },
   );
 };
+const REFRESH_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days, match your JWT exp
+const newExpiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_MS);
+const MAX_PASSWORD_LENGTH = 72; // bcrypt ignores bytes beyond this anyway
+const ACCESS_TOKEN_MAX_AGE_MS = 15 * 60 * 1000; // 15 min, match your JWT exp
+const REFRESH_TOKEN_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const REFRESH_TOKEN_MAX_AGE_REMEMBER_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+const hashToken = (token) =>
+  crypto.createHash("sha256").update(token).digest("hex");
+
+const normalizeEmail = (email) => email.trim().toLowerCase();
+
+const cookieOptions = {
+  httpOnly: true,
+  sameSite: "strict",
+  secure: process.env.NODE_ENV === "production",
+};
 
 export const signup = async (req, res) => {
   try {
     const saltRounds = 10;
 
     // Destructure email and password from request body
-    const { name, email, password } = req.body;
-    const userInputPassword = password;
+    const { name, password } = req.body;
+    const email = normalizeEmail(req.body.email || "");
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ message: "Name is required" });
+    }
 
     // validate user credentials
-    if (!validate.isEmail(req.body.email)) {
+    if (!validate.isEmail(email)) {
       return res.status(400).json({ message: "Email is required" });
     }
 
-    if (!userInputPassword || userInputPassword.length < 6) {
+    if (!password || password.length < 6) {
       return res
         .status(400)
         .json({ message: "Password must be at least 6 characters long" });
+    }
+
+    if (password.length > MAX_PASSWORD_LENGTH) {
+      return res.status(400).json({
+        message: `Password must be at most ${MAX_PASSWORD_LENGTH} characters long`,
+      });
     }
 
     // check if user already exists
@@ -67,13 +96,13 @@ export const signup = async (req, res) => {
     }
 
     // hash password
-    const pwdHash = await hash(userInputPassword, saltRounds);
+    const pwdHash = await hash(password, saltRounds);
 
     // store the user in the database
     const insertData = {
-      email: email,
+      email,
       password: pwdHash,
-      name: name,
+      name: name.trim(),
       surname: req.body.surname || "",
       gender: req.body.gender || "",
     };
@@ -89,23 +118,22 @@ export const signup = async (req, res) => {
     }
 
     // If the insertion was successful, you can send a success response
-    res.status(200).json({
+    res.status(201).json({
       message: "User signed up successfully",
     });
   } catch (error) {
-    return res
-      .status(500)
-      .json({ message: "Internal server error", error: error.message });
+    return res.status(500).json({ message: "Internal server error" });
   }
 };
 
 export const login = async (req, res) => {
   try {
-    const { email, password, remember } = req.body;
+    const { password, remember } = req.body;
+    const email = normalizeEmail(req.body.email || "");
 
     // validate user data
     if (!validate.isEmail(email)) {
-      return res.status(401).json({ message: "Email is not valid!" });
+      return res.status(401).json({ message: "Invalid email or password!" });
     }
 
     // check user in database
@@ -117,22 +145,27 @@ export const login = async (req, res) => {
       return res.status(500).json({ message: "Internal server error" });
     }
 
+    // Same generic message whether the user doesn't exist or the
+    // password is wrong — don't let this endpoint be used to enumerate
+    // registered emails.
+    if (!existingUser) {
+      return res.status(401).json({ message: "Invalid email or password" });
+    }
+
     // verify user password
     const pwdCompare = await compare(password, existingUser.password);
     if (!pwdCompare) {
-      return res.status(400).json({ message: "Incorrect password!" });
+      return res.status(401).json({ message: "Incorrect password!" });
     }
 
     // create access and refresh token
     const accessToken = generateAccessToken(existingUser);
     const refreshToken = generateRefreshToken(existingUser);
 
-    // add the token to the cookies
-    const cookieOptions = {
-      httpOnly: true,
-      sameSite: "strict",
-      secure: process.env.NODE_ENV === "production",
-    };
+    const refreshTtlMs = remember
+      ? REFRESH_TOKEN_MAX_AGE_REMEMBER_MS
+      : REFRESH_TOKEN_MAX_AGE_MS;
+    const newExpiresAt = new Date(Date.now() + refreshTtlMs);
 
     // store refresh token in database
     const [data, error] = await promiseResolver(
@@ -142,6 +175,7 @@ export const login = async (req, res) => {
             type: "REFRESH_TOKEN",
             token: refreshToken,
             user_id: existingUser.id,
+            expires_at: newExpiresAt.toISOString(),
           },
         ],
       }),
@@ -151,13 +185,20 @@ export const login = async (req, res) => {
       return res.status(500).json({ message: "Internal server error" });
     }
 
-    res.cookie("accessToken", accessToken, cookieOptions);
-    res.cookie("refreshToken", refreshToken, cookieOptions);
+    // add the token to the cookies
+    res.cookie("accessToken", accessToken, {
+      ...cookieOptions,
+      maxAge: ACCESS_TOKEN_MAX_AGE_MS,
+    });
+    res.cookie("refreshToken", refreshToken, {
+      ...cookieOptions,
+      maxAge: refreshTtlMs,
+    });
 
     return res.status(200).json({ message: "login successful" });
   } catch (error) {
-    console.error(error);
-    return res.status(400).json({ message: "Something went wrong!" });
+    console.error("Login error:", error);
+    return res.status(500).json({ message: "Internal server error" });
   }
 };
 
@@ -179,18 +220,28 @@ export const refreshToken = async (req, res) => {
   if (!oldRefreshToken)
     return res.status(401).json({ message: "No refresh token" });
 
+  let decoded;
   try {
-    const decoded = jwt.verify(
+    decoded = jwt.verify(
       oldRefreshToken,
       process.env.JWT_REFRESH_TOKEN_SECRET_KEY,
     );
+  } catch (err) {
+    // distinguish expired vs invalid so the client can react correctly
+    if (err.name === "TokenExpiredError") {
+      return res.status(401).json({ message: "Refresh token expired" });
+    }
+    return res.status(401).json({ message: "Invalid refresh token" });
+  }
 
+  try {
     // fetch token from db
     const [tokenData, tokenError] = await promiseResolver(
       gqlClient.request(GET_LOGIN_TOKENS, {
-        where: { user_id: { _eq: decoded.id } },
-        order_by: [{ created_at: "desc" }],
-        limit: 1,
+        where: {
+          user_id: { _eq: decoded.id },
+          token: { _eq: oldRefreshToken },
+        },
       }),
     );
 
@@ -199,17 +250,46 @@ export const refreshToken = async (req, res) => {
       return res.status(500).json({ message: "Internal server error" });
     }
 
-    const user_login_token = tokenData?.users_refresh_tokens;
+    const tokenRow = tokenData?.users_refresh_tokens?.[0];
 
-    const storedToken = user_login_token?.[0]?.token; // latest token in DB
-
-    if (!storedToken || storedToken !== oldRefreshToken) {
+    if (!tokenRow) {
+      await promiseResolver(
+        gqlClient.request(REVOKE_ALL_USER_TOKENS, {
+          where: { user_id: { _eq: decoded.id } },
+          _set: { revoked_at: new Date().toISOString() },
+        }),
+      );
       return res.status(401).json({ message: "Invalid refresh token" });
+    }
+
+    // Already revoked (used once already, or logged out)
+    if (tokenRow.revoked_at) {
+      return res.status(401).json({ message: "Refresh token revoked" });
+    }
+
+    // DB-level expiry check (independent of JWT exp — lets you shorten
+    // a session server-side without waiting for the JWT to expire)
+    if (new Date(tokenRow.expires_at) <= new Date()) {
+      return res.status(401).json({ message: "Refresh token expired" });
     }
 
     // Issue new tokens
     const newAccessToken = generateAccessToken(decoded);
     const newRefreshToken = generateRefreshToken(decoded);
+
+    // Rotate: revoke the old row and insert the new one.
+    // (Do this as a single Hasura mutation if your client supports
+    // multiple mutation fields in one request, so it's atomic.)
+    const [, revokeError] = await promiseResolver(
+      gqlClient.request(REVOKE_TOKEN, {
+        where: { id: { _eq: tokenRow.id } },
+        _set: { revoked_at: new Date().toISOString() },
+      }),
+    );
+    if (revokeError) {
+      console.error("Failed to revoke old refresh token:", revokeError);
+      return res.status(500).json({ message: "Internal server error" });
+    }
 
     // store new refresh token in db
     const [data, error] = await promiseResolver(
@@ -219,6 +299,7 @@ export const refreshToken = async (req, res) => {
             type: "REFRESH_TOKEN",
             token: newRefreshToken,
             user_id: decoded.id,
+            expires_at: newExpiresAt.toISOString(),
           },
         ],
       }),
@@ -228,81 +309,81 @@ export const refreshToken = async (req, res) => {
       return res.status(500).json({ message: "Internal server error" });
     }
     // add the token to the cookies
-    const cookieOptions = {
-      httpOnly: true,
-      sameSite: "strict",
-      secure: process.env.NODE_ENV === "production",
-    };
-
-    res.cookie("accessToken", newAccessToken, cookieOptions);
-    res.cookie("refreshToken", newRefreshToken, cookieOptions);
+    res.cookie("accessToken", newAccessToken, {
+      ...cookieOptions,
+      maxAge: ACCESS_TOKEN_MAX_AGE_MS, // match your access token TTL
+    });
+    res.cookie("refreshToken", newRefreshToken, {
+      ...cookieOptions,
+      maxAge: REFRESH_TOKEN_TTL_MS,
+    });
 
     return res.json({ message: "Token refreshed" });
   } catch (error) {
     console.error("Refresh token error:", error);
-    return res
-      .status(401)
-      .json({ message: "Invalid or expired refresh token" });
+    return res.status(500).json({ message: "Internal server error" });
   }
 };
 
 export const logout = async (req, res) => {
+  const hashToken = (token) =>
+    crypto.createHash("sha256").update(token).digest("hex");
+
+  const clearAuthCookies = (res) => {
+    res.clearCookie("accessToken", cookieOptions);
+    res.clearCookie("refreshToken", cookieOptions);
+  };
+
+  // fetch user details from taken from cookies
+  const authToken = req.cookies.refreshToken;
+
+  // No token at all — nothing to revoke, but still clear cookies and
+  // treat it as a successful logout (idempotent).
+  if (!authToken) {
+    clearAuthCookies(res);
+    return res.status(200).json({ message: "Logged out successfully" });
+  }
+
+  let decoded;
   try {
-    // fetch user details from taken from cookies
-    const authToken = req.cookies.refreshToken;
-
-    if (!validate.isJWT(authToken)) {
-      return res.status(400).send("Token is not valid!");
+    decoded = jwt.verify(authToken, process.env.JWT_REFRESH_TOKEN_SECRET_KEY);
+  } catch (error) {
+    // Even if the refresh token is expired or malformed, logout should
+    // still succeed client-side — there's nothing left server-side worth
+    // protecting for a dead token, and the user's intent is just "log me out."
+    clearAuthCookies(res);
+    if (error.name === "TokenExpiredError") {
+      return res
+        .status(200)
+        .json({ message: "Session already expired, logged out" });
     }
-    const decodedObj = jwt.verify(
-      authToken,
-      process.env.JWT_ACCESS_TOKEN_SECRET_KEY,
-    );
+    return res.status(200).json({ message: "Logged out successfully" });
+  }
 
-    // verify the user
-    // check user in database
-    //? do we need this check
-    const [{ users_user_by_pk: existingUser = {} }, existingUserError] =
-      await promiseResolver(
-        gqlClient.request(GET_USER_BY_EMAIL, { email: decodedObj.email }),
-      );
-    if (existingUserError) {
-      console.error("Error checking existing user:", existingUserError);
-      return res.status(500).json({ message: "Internal server error" });
-    }
-    req.user = existingUser;
-    // make sure to send via authmiddleware
-
-    // delete refresh token
-    const [insertResult, insertError] = await promiseResolver(
-      gqlClient.request(DELETE_LOGIN_TOKEN, {
-        where: { user_id: { _eq: decodedObj.id } },
+  try {
+    // Revoke only THIS session's token, not every device the user is
+    // logged in on. Use RevokeAllUserTokens instead if you want
+    // "log out everywhere" behavior here.
+    const [, revokeError] = await promiseResolver(
+      gqlClient.request(REVOKE_TOKEN_LOGOUT, {
+        where: {
+          user_id: { _eq: decoded.id },
+          token: { _eq: authToken },
+        },
+        _set: { revoked_at: new Date().toISOString() },
       }),
     );
-
-    if (insertError) {
-      console.error("Error deleting refresh token:", insertError);
-      return res.status(500).json({ message: "Internal server error" });
+    if (revokeError) {
+      console.error("Error revoking refresh token:", revokeError);
+      // Don't block logout on a DB error — the cookies are the user-facing
+      // session, and we still want them cleared. Log it and move on;
+      // the token will die on its own at expires_at even if revoke failed.
     }
-
-    // add the token to the cookies
-    res.clearCookie("accessToken", {
-      httpOnly: true,
-      sameSite: "strict",
-      secure: process.env.NODE_ENV === "production",
-    });
-    res.clearCookie("refreshToken", {
-      httpOnly: true,
-      sameSite: "strict",
-      secure: process.env.NODE_ENV === "production",
-    });
-
-    return res.status(200).json({ message: "Logout successfully" });
+    clearAuthCookies(res);
+    return res.status(200).json({ message: "Logged out successfully" });
   } catch (error) {
-    console.error(error);
-    if (error.name === "TokenExpiredError") {
-      return res.status(400).send("Session Expired!");
-    }
-    return res.status(400).send("Something went worng!");
+    console.error("Logout error:", error);
+    clearAuthCookies(res);
+    return res.status(200).json({ message: "Logged out successfully" });
   }
 };

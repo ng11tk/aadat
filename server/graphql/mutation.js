@@ -19,11 +19,27 @@ mutation INSERT_LOGIN_TOKEN($objects: [users_refresh_tokens_insert_input!] = {})
 }
 `;
 
-export const DELETE_LOGIN_TOKEN = `
-mutation DELETE_LOGIN_TOKEN($where: users_refresh_tokens_bool_exp = {}) {
-  delete_users_refresh_tokens(where: $where) {
-    affected_rows
+export const REVOKE_TOKEN_LOGOUT = `
+  mutation REVOKE_TOKEN_LOGOUT($where: users_refresh_tokens_bool_exp = {}, $_set: users_refresh_tokens_set_input = {}) {
+    update_users_refresh_tokens(where: $where, _set: $_set) {
+      affected_rows
+    }
   }
+`;
+
+export const REVOKE_ALL_USER_TOKENS = `
+  mutation REVOKE_ALL_USER_TOKENS($_set: users_refresh_tokens_set_input = {}, $where: users_refresh_tokens_bool_exp = {}) {
+    update_users_refresh_tokens(where: $where, _set: $_set) {
+      affected_rows
+    }
+  }
+`;
+
+export const REVOKE_TOKEN = `
+  mutation REVOKE_TOKEN($_set: users_refresh_tokens_set_input = {revoked_at: ""}, $where: users_refresh_tokens_bool_exp = {}) {
+    update_users_refresh_tokens(_set: $_set, where: $where) {
+      affected_rows
+    }
 }
 `;
 
