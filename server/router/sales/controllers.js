@@ -60,8 +60,6 @@ export const createSalesOrder = async (req, res) => {
       }
       const updateData = resultUpdate;
 
-      console.log("Sales order total updated:", updateData);
-
       //* Then insert the new items. If this fails, attempt to rollback the total_amount.
       try {
         const [insertItemsData, insertItemsError] = await promiseResolver(
@@ -75,8 +73,6 @@ export const createSalesOrder = async (req, res) => {
         if (insertItemsError) {
           throw insertItemsError;
         }
-
-        console.log("Sales order items updated:", insertItemsData);
       } catch (insertErr) {
         console.error(
           "Failed to insert sales order items, attempting rollback:",
@@ -95,8 +91,6 @@ export const createSalesOrder = async (req, res) => {
           if (rollbackError) {
             throw rollbackError;
           }
-
-          console.log("Rollback successful:", rollbackData);
         } catch (rollbackErr) {
           console.error("Rollback failed:", rollbackErr);
           return res.status(500).json({
@@ -124,8 +118,6 @@ export const createSalesOrder = async (req, res) => {
           .json({ message: "Failed to insert new sales order" });
       }
       const insertData = resultInsert;
-
-      console.log("New sales order created:", insertData);
     }
 
     res.status(201).json({ message: "Sales order created successfully" });

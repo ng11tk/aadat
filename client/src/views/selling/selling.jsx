@@ -17,7 +17,7 @@ const SalesDashboard = () => {
   const [addedItems, setAddedItems] = useState([]);
   const [insertSalesOrderLoading, setInsertSalesOrderLoading] = useState(false);
 
-  // fetch buyers on load
+  //* fetch buyers on load
   const { data: fetchBuyers } = useQuery(GET_BUYERS);
   const buyersData = fetchBuyers?.buyer_buyers || []; 
   useEffect(() => {
@@ -26,7 +26,7 @@ const SalesDashboard = () => {
     setBuyers(formatted);
   }, [fetchBuyers]);
 
-  // fetch modi items
+  //* fetch modi items
   const {
     data: modiData,
     loading: modiLoading,

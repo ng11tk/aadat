@@ -65,7 +65,7 @@ const SupplierCard = ({ loading, supplierFromDatabase }) => {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
       {supplierFromDatabase.map((supplier, index) => {
         const due = (supplier.total || 0) - (supplier.paid || 0);
         const status = due === 0 ? "paid" : due > 0 ? "partial" : "due";

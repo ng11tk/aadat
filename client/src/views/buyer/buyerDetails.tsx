@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useApolloClient, useQuery } from "@apollo/client/react";
 import { FETCH_BUYER_DETAILS } from "../../graphql/query";
 import { promiseResolver } from "../../utils/promisResolver";
@@ -8,9 +8,19 @@ import api from "../../lib/axios";
 import { formatDate } from "../../utils/time";
 import DateFilter from "../../components/dateFilter";
 import PaymentStatusFilter from "../../components/paymentStatusFilter";
+import ItemDetails from "./components/modals/itemDetails";
+import TransactionCard from "./components/transactionCard";
+import {
+  ArrowLeft,
+  Phone,
+  TrendingDown,
+  TrendingUp,
+  Building2,
+} from "lucide-react";
 
 const BuyerDetails = () => {
   const client = useApolloClient();
+  const navigate = useNavigate();
   const today = new Date();
   const location = useLocation();
   const buyerFromState = location.state?.buyer || {};
@@ -21,7 +31,8 @@ const BuyerDetails = () => {
     formatDate(new Date(today.getFullYear(), today.getMonth(), 1)),
   );
   const [toDate, setToDate] = useState(formatDate(today));
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("partial");
+  const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
 
   // where filter for supplier details
   const whereBuyerTransactionsDetails = useMemo(() => {
@@ -81,15 +92,20 @@ const BuyerDetails = () => {
     setTransactions(t);
   }, [buyer_buyers_by_pk]);
 
-  const filtered = transactions.filter((t) => {
-    const d = new Date(t.date);
-    const withinDate = d >= new Date(fromDate) && d <= new Date(toDate);
-    const statusMatch =
-      statusFilter === "all" ||
-      (statusFilter === "paid" && t.due === 0) ||
-      (statusFilter === "partial" && t.due > 0);
-    return withinDate && statusMatch;
-  });
+  const filtered = useMemo(() => {
+    return transactions.filter((t) => {
+      const d = new Date(t.date);
+      const rangeStart = new Date(fromDate);
+      const rangeEnd = new Date(toDate);
+      rangeEnd.setHours(23, 59, 59, 999);
+      const withinDate = d >= rangeStart && d <= rangeEnd;
+      const statusMatch =
+        statusFilter === "all" ||
+        (statusFilter === "paid" && t.due === 0) ||
+        (statusFilter === "partial" && t.due > 0);
+      return withinDate && statusMatch;
+    });
+  }, [transactions, fromDate, toDate, statusFilter]);
 
   const [selectedTransactions, setSelectedTransactions] = useState<any>({});
 
@@ -115,245 +131,239 @@ const BuyerDetails = () => {
   );
 
   const confirmPayment = async () => {
-    if (totalSelectedAmount === 0) {
-      alert("Please select at least one transaction with a valid amount.");
-      return;
-    }
+    if (Object.keys(selectedTransactions).length === 0) return;
+    if (isSubmittingPayment) return;
 
-    const [data, error] = await promiseResolver(
+    setIsSubmittingPayment(true);
+
+    const [, error] = await promiseResolver(
       api.post("/api/v1/buyers/buyer/transactions", { selectedTransactions }),
     );
+
+    setIsSubmittingPayment(false);
 
     if (error) {
       alert("Error recording payment. Please try again.");
       return;
     }
 
-    // clear cache to reflect updated dues
-    client.cache.evict({
-      fieldName: "buyer_buyers",
-    });
-
+    client.cache.evict({ fieldName: "buyer_buyers" });
     client.cache.gc();
 
-    // reset selection
     setSelectedTransactions({});
-    // refetch buyer details to reflect updated dues
     refetchBuyer();
   };
 
+  const hasSelection = Object.keys(selectedTransactions).length > 0;
+
   return (
-    <div className="p-6 bg-gray-50 min-h-screen text-gray-900">
-      <div className="mb-6 grid md:grid-cols-2 gap-4">
-        <div className="bg-white shadow-md rounded-xl p-4 border border-gray-200">
-          <h2 className="text-lg font-semibold mb-1">
-            {buyer.name || buyer.buyer}
-          </h2>
-          <p className="text-gray-600 text-sm">
-            📞 {buyer.contact || buyer.phone || "-"}
-          </p>
-        </div>
-        <div className="bg-white shadow-md rounded-xl p-4 border border-gray-200 flex justify-around">
-          <div className="text-center">
-            <p className="text-gray-500 text-sm">Total Sale</p>
-            <p className="font-semibold text-indigo-600">₹{buyer.total || 0}</p>
-          </div>
-          <div className="text-center">
-            <p className="text-gray-500 text-sm">Due</p>
-            <p className="font-semibold text-red-600">₹{buyer.due || 0}</p>
-          </div>
-          <div className="text-center">
-            <p className="text-gray-500 text-sm">Advance</p>
-            <p className="font-semibold text-indigo-600">₹0</p>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+      <div className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <div className="flex items-center gap-3">
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => navigate(-1)}
+              className="p-2 hover:bg-gray-100 rounded-lg transition"
+            >
+              <ArrowLeft className="w-5 h-5 text-gray-600" />
+            </motion.button>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">
+                {buyerLoading ? "Loading..." : buyer.name || "Buyer Details"}
+              </h1>
+              <p className="text-xs text-gray-500 flex items-center gap-1.5 mt-1">
+                <Phone className="h-3.5 w-3.5" />
+                {buyer.contact || buyer.phone || "—"}
+              </p>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3 mb-6">
-        <DateFilter
-          toDate={toDate}
-          setToDate={setToDate}
-          fromDate={fromDate}
-          setFromDate={setFromDate}
-        />
-        <PaymentStatusFilter
-          statusFilter={statusFilter}
-          setStatusFilter={setStatusFilter}
-        />
-      </div>
+      <div
+        className={`max-w-7xl mx-auto px-6 py-8 space-y-6 ${hasSelection ? "pb-28" : ""}`}
+      >
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-lg transition"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-gray-600 text-sm font-medium">Total Sale</p>
+              <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
+                <TrendingUp className="w-4 h-4 text-blue-600" strokeWidth={2} />
+              </div>
+            </div>
+            <h3 className="text-3xl font-bold text-gray-900">
+              ₹{(buyer.total || 0).toLocaleString()}
+            </h3>
+            <p className="text-xs text-gray-500 mt-2">From all transactions</p>
+          </motion.div>
 
-      {/* Transactions Grid */}
-      <div className="grid md:grid-cols-3 gap-4">
-        {buyerLoading && <p>Loading ...</p>}
-        {!buyerLoading && filtered.length === 0 && <p>No, Items found.</p>}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-lg transition"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-gray-600 text-sm font-medium">Total Due</p>
+              <div className="w-8 h-8 bg-red-50 rounded-lg flex items-center justify-center">
+                <TrendingDown
+                  className="w-4 h-4 text-red-600"
+                  strokeWidth={2}
+                />
+              </div>
+            </div>
+            <h3 className="text-3xl font-bold text-red-600">
+              ₹{(buyer.due || 0).toLocaleString()}
+            </h3>
+            <p className="text-xs text-gray-500 mt-2">Pending payments</p>
+          </motion.div>
 
-        {!buyerLoading &&
-          filtered.map((t) => {
-            const info = selectedTransactions[t.id] || {
-              mode: "full",
-              amount: t.due,
-            };
-            const isPaid = t.due === 0;
-            return (
-              <motion.div
-                key={t.id}
-                layout
-                whileHover={
-                  !isPaid
-                    ? { y: -4, boxShadow: "0px 8px 16px rgba(0,0,0,0.1)" }
-                    : {}
-                }
-                className={`relative rounded-xl p-5 shadow-md border transition cursor-pointer ${
-                  isPaid
-                    ? "bg-gradient-to-r from-indigo-50 to-indigo-100 border-indigo-300"
-                    : "bg-white border-gray-200"
-                }`}
-                onClick={() => setModalTransaction(t)}
-              >
-                <div className="absolute top-2 right-2">
-                  <span
-                    className={`px-3 py-1 text-xs font-semibold rounded-full ${
-                      isPaid
-                        ? "bg-indigo-600 text-white"
-                        : "bg-yellow-500 text-white"
-                    }`}
-                  >
-                    {isPaid ? "Paid ✅" : "Partial ⚠️"}
-                  </span>
-                </div>
-
-                <p className="font-semibold text-gray-800">{t.date}</p>
-                <p className="text-sm text-gray-600">Total: ₹{t.total}</p>
-                <p className="text-sm font-medium text-red-600">
-                  Due: ₹{t.due}
-                </p>
-
-                {!isPaid && (
-                  <div className="mt-3 space-y-2">
-                    <div className="flex gap-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          updateTransactionSelection(t.id, "full");
-                        }}
-                        className={`flex-1 px-3 py-1 rounded-full text-sm font-medium ${
-                          info.mode === "full"
-                            ? "bg-indigo-500 text-white"
-                            : "bg-gray-100 text-gray-700 hover:bg-indigo-100"
-                        }`}
-                      >
-                        Full
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          updateTransactionSelection(
-                            t.id,
-                            "partial",
-                            info.amount || 0,
-                          );
-                        }}
-                        className={`flex-1 px-3 py-1 rounded-full text-sm font-medium ${
-                          info.mode === "partial"
-                            ? "bg-yellow-400 text-white"
-                            : "bg-gray-100 text-gray-700 hover:bg-yellow-100"
-                        }`}
-                      >
-                        Partial
-                      </button>
-                    </div>
-                    {info.mode === "partial" && (
-                      <div className="flex gap-2 mt-2">
-                        <input
-                          type="number"
-                          min={0}
-                          max={t.due}
-                          value={info.amount || ""}
-                          onChange={(e) =>
-                            setSelectedTransactions((prev: any) => ({
-                              ...prev,
-                              [t.id]: {
-                                ...prev[t.id],
-                                amount: Number(e.target.value),
-                              },
-                            }))
-                          }
-                          className="flex-1 input input-sm input-bordered bg-white"
-                          placeholder="₹ Amount"
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                          }}
-                          className="btn btn-sm btn-primary"
-                        >
-                          ✔
-                        </button>
-                      </div>
-                    )}
-                    {info.mode === "partial" && info.finalized && (
-                      <p className="text-xs mt-1 text-orange-600 font-medium">
-                        Partial Paid: ₹{info.amount}
-                      </p>
-                    )}
-                  </div>
-                )}
-              </motion.div>
-            );
-          })}
-      </div>
-
-      {Object.keys(selectedTransactions).length > 0 && (
-        <div className="mt-6 bg-white shadow rounded-xl p-4 flex justify-between items-center border border-gray-200">
-          <span className="text-gray-700 font-medium">
-            Total Selected Payable
-          </span>
-          <span className="text-xl font-bold text-indigo-600">
-            ₹{totalSelectedAmount}
-          </span>
-          <button className="btn btn-primary" onClick={confirmPayment}>
-            Confirm Payment
-          </button>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-lg transition"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-gray-600 text-sm font-medium">Advance</p>
+              <div className="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center">
+                <Building2
+                  className="w-4 h-4 text-emerald-600"
+                  strokeWidth={2}
+                />
+              </div>
+            </div>
+            <h3 className="text-3xl font-bold text-emerald-600">₹0</h3>
+            <p className="text-xs text-gray-500 mt-2">Credited amount</p>
+          </motion.div>
         </div>
-      )}
 
-      <AnimatePresence>
-        {modalTransaction && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-4 h-4 bg-indigo-600 rounded" />
+            <h3 className="text-sm font-semibold text-gray-700">
+              Filter Transactions
+            </h3>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <DateFilter
+              toDate={toDate}
+              setToDate={setToDate}
+              fromDate={fromDate}
+              setFromDate={setFromDate}
+            />
+            <PaymentStatusFilter
+              statusFilter={statusFilter}
+              setStatusFilter={setStatusFilter}
+            />
+          </div>
+        </div>
+
+        {buyerLoading && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50"
-            onClick={() => setModalTransaction(null)}
+            className="flex justify-center items-center py-16"
           >
-            <motion.div
-              initial={{ scale: 0.9 }}
-              animate={{ scale: 1 }}
-              exit={{ scale: 0.9 }}
-              className="bg-white rounded-xl shadow-lg p-6 w-96 max-h-[80vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3 className="font-semibold text-lg mb-4">Transaction Items</h3>
-              {modalTransaction.items.map((i: any, idx: number) => (
-                <div key={idx} className="flex justify-between mb-2">
-                  <span className="text-gray-700">
-                    {i.name} x{i.quantity}
-                  </span>
-                  <span className="font-semibold text-gray-900">
-                    ₹{(i.quantity * (i.rate || 0)).toFixed(2)}
-                  </span>
-                </div>
-              ))}
-              <button
-                className="mt-4 btn btn-primary w-full"
-                onClick={() => setModalTransaction(null)}
-              >
-                Close
-              </button>
-            </motion.div>
+            <div className="text-center">
+              <div className="inline-block h-8 w-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-3" />
+              <p className="text-gray-500 text-sm">Loading transactions...</p>
+            </div>
           </motion.div>
+        )}
+
+        {!buyerLoading && !buyerError && (
+          <>
+            {!filtered.length && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-gray-100"
+              >
+                <p className="text-gray-500 text-sm font-medium">
+                  No transactions found
+                </p>
+                <p className="text-gray-400 text-xs mt-1">
+                  Try adjusting the date range or filters
+                </p>
+              </motion.div>
+            )}
+            {filtered.length > 0 && (
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filtered.map((t, index) => (
+                  <motion.div
+                    key={t.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                  >
+                    <TransactionCard
+                      setModalTransaction={setModalTransaction}
+                      transaction={t}
+                      selectedTransactions={selectedTransactions}
+                      setSelectedTransactions={setSelectedTransactions}
+                      updateTransaction={updateTransactionSelection}
+                    />
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      <AnimatePresence>
+        {hasSelection && (
+          <motion.div
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-[0_-4px_12px_rgba(0,0,0,0.08)]"
+          >
+            <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+              <div>
+                <p className="text-xs text-gray-500 mb-1">
+                  {Object.keys(selectedTransactions).length} transaction
+                  {Object.keys(selectedTransactions).length > 1 ? "s" : ""}{" "}
+                  selected
+                </p>
+                <p className="text-2xl font-bold text-indigo-600">
+                  ₹{totalSelectedAmount.toLocaleString()}
+                </p>
+              </div>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="px-6 py-3 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-2 shadow-lg"
+                onClick={confirmPayment}
+                disabled={isSubmittingPayment}
+              >
+                {isSubmittingPayment && (
+                  <span
+                    className="inline-block h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"
+                    aria-hidden="true"
+                  />
+                )}
+                {isSubmittingPayment ? "Processing..." : "Confirm Payment"}
+              </motion.button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {modalTransaction && (
+          <ItemDetails
+            setModalTransaction={setModalTransaction}
+            modalTransaction={modalTransaction}
+          />
         )}
       </AnimatePresence>
     </div>
