@@ -4,6 +4,10 @@ import {
 } from "../../graphql/mutation.js";
 import { FIND_SALES_ORDERS } from "../../graphql/query.js";
 import { gqlClient } from "../../lib/graphql.js";
+import {
+  createBulkSalesOrders,
+  createSalesOrderPG,
+} from "../../services/sales.service.js";
 import { promiseResolver } from "../../utils/promiseResolver.js";
 
 export const createSalesOrder = async (req, res) => {
@@ -125,3 +129,115 @@ export const createSalesOrder = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
+export async function createOrder(req, res) {
+  2;
+  try {
+    // const fallbackInput = {
+    //   buyer_id: "buyer_id",
+    //   order_date: "2026-08-07",
+    //   items: [
+    //     {
+    //       supplier_name: "create",
+    //       item_name: "Rice",
+    //       quantity: 10,
+    //       unit_price: 50,
+    //       item_weight: 25,
+    //       item_date: "2026-08-07",
+    //     },
+    //     {
+    //       supplier_name: "create",
+    //       item_name: "Sugar",
+    //       quantity: 5,
+    //       unit_price: 40,
+    //       item_weight: 10,
+    //       item_date: "2026-08-07",
+    //     },
+    //   ],
+    // };
+
+    const input = Object.keys(req.body || {});
+    const buyerId = input.buyer_id;
+    const orderDate = input.order_date;
+    const items = input.sales_order_items.data;
+
+    if (!buyerId || !orderDate || !items) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required order fields",
+      });
+    }
+
+    const orderId = await createSalesOrderPG({
+      buyerId,
+      orderDate,
+      items,
+    });
+
+    return res.status(201).json({
+      success: true,
+      orderId,
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+}
+
+export async function createOrders(req, res) {
+  try {
+    // const fallbackInput = [
+    //   {
+    //     buyer_id: "buyer_id",
+    //     order_date: "2026-08-07",
+    //     items: [
+    //       {
+    //         supplier_name: "create",
+    //         item_name: "Rice",
+    //         quantity: 10,
+    //         unit_price: 50,
+    //         item_weight: 25,
+    //         item_date: "2026-08-07",
+    //       },
+    //       {
+    //         supplier_name: "create",
+    //         item_name: "Sugar",
+    //         quantity: 5,
+    //         unit_price: 40,
+    //         item_weight: 10,
+    //         item_date: "2026-08-07",
+    //       },
+    //     ],
+    //   },
+    //   {
+    //     buyer_id: "buyer_id",
+    //     order_date: "2026-08-07",
+    //     items: [
+    //       {
+    //         supplier_name: "Supplier_test",
+    //         item_name: "Oil",
+    //         quantity: 3,
+    //         unit_price: 120,
+    //         item_weight: 15,
+    //         item_date: "2026-08-07",
+    //       },
+    //     ],
+    //   },
+    // ];
+    const orderIds = await createBulkSalesOrders(req.body);
+
+    return res.status(201).json({
+      success: true,
+      orders: orderIds,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+}

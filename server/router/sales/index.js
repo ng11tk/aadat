@@ -1,3 +1,7 @@
-import { publicSalesRouter, privateSalesRouter } from "./router.js";
+import {
+  publicSalesRouter,
+  privateSalesRouter,
+  privateSalesRouter_v2,
+} from "./router.js";
 
-export { publicSalesRouter, privateSalesRouter };
+export { publicSalesRouter, privateSalesRouter, privateSalesRouter_v2 };

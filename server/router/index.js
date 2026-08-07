@@ -2,7 +2,11 @@ import { Router } from "express";
 import { authRouter } from "./auth/route.js";
 import protectedRoute from "../middleware/protectedRoute.js";
 import { openingPublicRouter, openingPrivateRouter } from "./opening/index.js";
-import { publicSalesRouter, privateSalesRouter } from "./sales/index.js";
+import {
+  publicSalesRouter,
+  privateSalesRouter,
+  privateSalesRouter_v2,
+} from "./sales/index.js";
 import { privateBuyerRouter, publicBuyerRouter } from "./buyer/route.js";
 import {
   publicSupplierRouter,
@@ -10,19 +14,19 @@ import {
 } from "./supplier/index.js";
 import { publicExpenseRouter, privateExpenseRouter } from "./expense/index.js";
 import { privatePaymentRouter, publicPaymentRouter } from "./payment/index.js";
-import {  privateApiLimiter, publicApiLimiter } from "../middleware/rateLimiter.js";
+import {
+  privateApiLimiter,
+  publicApiLimiter,
+} from "../middleware/rateLimiter.js";
 
 const serverPublicRouter = Router();
 const serverPrivateRouter = Router();
-
-
 
 // Authentication
 serverPrivateRouter.use(protectedRoute);
 
 // After authentication
 serverPrivateRouter.use(privateApiLimiter);
-
 
 // Use the authentication routes
 serverPublicRouter.use("/auth", authRouter);
@@ -37,6 +41,7 @@ serverPrivateRouter.use("/api/v1/opening", openingPrivateRouter);
 // sales routes
 serverPublicRouter.use("/api/v1/sales", publicSalesRouter);
 serverPrivateRouter.use("/api/v1/sales", privateSalesRouter);
+serverPrivateRouter.use("/api/v2/sales", privateSalesRouter_v2);
 
 // buyer routes
 serverPublicRouter.use("/api/v1/buyers", publicBuyerRouter);
