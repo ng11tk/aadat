@@ -131,7 +131,6 @@ export const createSalesOrder = async (req, res) => {
 };
 
 export async function createOrder(req, res) {
-  2;
   try {
     // const fallbackInput = {
     //   buyer_id: "buyer_id",
