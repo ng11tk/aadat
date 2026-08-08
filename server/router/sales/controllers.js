@@ -155,7 +155,7 @@ export async function createOrder(req, res) {
     //   ],
     // };
 
-    const input = Object.keys(req.body || {});
+    const input = req.body;
     const buyerId = input.buyer_id;
     const orderDate = input.order_date;
     const items = input.sales_order_items.data;

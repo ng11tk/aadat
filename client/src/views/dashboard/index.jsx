@@ -6,6 +6,7 @@ import ExpenseModal from "./components/expenseModal";
 import { useQuery } from "@apollo/client/react";
 import { FETCH_SALES } from "../../graphql/query";
 import { useDebounce } from "../../utils/debounce";
+import { calculateLineTotal } from "../../utils/salesPricing";
 
 const SalesDashboard = () => {
   const navigate = useNavigate();
@@ -143,12 +144,18 @@ const SalesDashboard = () => {
             >
               <h3 className="font-semibold text-lg mb-4">Transaction Items</h3>
               {modalTransaction.sales_order_items.map((i, idx) => (
-                <div key={idx} className="flex justify-between mb-2">
-                  <span className="text-gray-700">
+                <div key={idx} className="flex justify-between mb-2 gap-3">
+                  <span className="text-gray-700 flex-1">
                     {i.item_name} x{i.quantity}
                   </span>
-                  <span className="font-semibold text-gray-900">
-                    ₹{i.quantity * i.unit_price}
+                  <span className="font-semibold text-gray-900 text-right">
+                    ₹
+                    {calculateLineTotal({
+                      weight: i.item_weight,
+                      qty: i.quantity,
+                      rate: i.unit_price,
+                      rate_type: i.rate_type,
+                    }).toLocaleString()}
                   </span>
                 </div>
               ))}

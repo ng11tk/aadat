@@ -1,6 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { X, ChevronRight, ShoppingBag } from "lucide-react";
+import {
+  calculateLineTotal,
+  calculateOrderTotal,
+} from "../../../utils/salesPricing";
 
 const SummaryModal = ({ items = [], onDeleteItem, openById }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -23,14 +27,7 @@ const SummaryModal = ({ items = [], onDeleteItem, openById }) => {
     }, {});
   }, [items]);
 
-  const total = useMemo(() => {
-    return items.reduce(
-      (sum, it) =>
-        sum +
-        Number(it.weight || 0) * Number(it.qty || 0) * Number(it.rate || 0),
-      0,
-    );
-  }, [items]);
+  const total = useMemo(() => calculateOrderTotal(items), [items]);
 
   if (!isOpen) return null;
 
@@ -89,10 +86,7 @@ const SummaryModal = ({ items = [], onDeleteItem, openById }) => {
 
                 <div className="px-3 pb-3 pt-1 space-y-2">
                   {arr.map((it) => {
-                    const lineTotal =
-                      Number(it.weight || 0) *
-                      Number(it.qty || 0) *
-                      Number(it.rate || 0);
+                    const lineTotal = calculateLineTotal(it);
                     return (
                       <div
                         key={it._idx}
@@ -104,7 +98,8 @@ const SummaryModal = ({ items = [], onDeleteItem, openById }) => {
                           </div>
                           <div className="text-xs text-gray-500 mt-1">
                             Weight: {it.weight || 0} | Qty: {it.qty || 0} |
-                            Rate: ₹{it.rate || 0}
+                            Rate: ₹{it.rate || 0} | Type:{" "}
+                            {it.rate_type === "quantity" ? "Qty" : "Weight"}
                           </div>
                         </div>
                         <div className="text-right">

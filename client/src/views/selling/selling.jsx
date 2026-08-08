@@ -6,6 +6,7 @@ import { useApolloClient, useQuery } from "@apollo/client/react";
 import { promiseResolver } from "../../utils/promisResolver";
 import api from "../../lib/axios";
 import { Link } from "react-router-dom";
+import { calculateOrderTotal } from "../../utils/salesPricing";
 
 const SalesDashboard = () => {
   const client = useApolloClient();
@@ -83,11 +84,7 @@ const SalesDashboard = () => {
   }, [modiData]);
 
   const totalAmount = useMemo(
-    () =>
-      addedItems.reduce(
-        (sum, it) => sum + (it.weight || 0) * (it.qty || 0) * (it.rate || 0),
-        0,
-      ),
+    () => calculateOrderTotal(addedItems),
     [addedItems],
   );
 
@@ -98,7 +95,8 @@ const SalesDashboard = () => {
           p.unloading_id === payload.unloading_id &&
           p.item_id === payload.item_id &&
           p.item_name === payload.item_name &&
-          Number(p.rate) === Number(payload.rate),
+          Number(p.rate) === Number(payload.rate) &&
+          p.rate_type === payload.rate_type,
       );
       if (idx >= 0) {
         const next = [...prev];
@@ -129,6 +127,8 @@ const SalesDashboard = () => {
           item_name: it.item_name,
           quantity: it.qty,
           unit_price: it.rate,
+          rate: it.rate,
+          rate_type: it.rate_type,
           item_weight: it.weight,
           item_date: new Date().toISOString().split("T")[0],
         })),
@@ -272,6 +272,7 @@ const SalesDashboard = () => {
                         qty: Number(payload.qty),
                         rate: Number(payload.rate),
                         weight: Number(payload.weight),
+                        rate_type: payload.rate_type,
                       })
                     }
                   />
