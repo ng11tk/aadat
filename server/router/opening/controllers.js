@@ -60,19 +60,6 @@ export const createUnloading = async (req, res) => {
           remaining_quantity: it.quantity,
         })),
       },
-      supplier_unloading: {
-        data: {
-          supplier_name: item.name,
-          amount: totalKharcha + itemsTotalAmount,
-          remaining_amount: totalKharcha + itemsTotalAmount - item.advance,
-          payment_status:
-            totalKharcha + itemsTotalAmount - item.advance <= 0
-              ? "paid"
-              : "partial",
-          unloading_date: new Date().toISOString().split("T")[0],
-          advance_amount: item.advance,
-        },
-      },
       expense_bills: {
         data: {
           category: "Bhada",

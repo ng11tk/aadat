@@ -34,16 +34,6 @@ const supplierUnloadingItems = [
     isSellable: true,
   },
 ];
-const modiUnloadingItems = [
-  {
-    name: "Gobhi",
-    rate: 10,
-    quantity: 10,
-    remaining_quantity: 10,
-    unit: "quintal",
-    isSellable: true,
-  },
-];
 
 const OpeningStock = () => {
   const client = useApolloClient();
@@ -51,14 +41,11 @@ const OpeningStock = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newItem, setNewItem] = useState({
     ...initialItem,
-    unloading_items:
-      initialItem.type === "supplier"
-        ? supplierUnloadingItems
-        : modiUnloadingItems,
+    unloading_items: supplierUnloadingItems,
   });
   const [insertUnloadingLoading, setInsertUnloadingLoading] = useState(false);
 
-  // queries
+  //* fetch all unloading
   const {
     data: openingQueryData,
     loading: openingLoading,
@@ -75,14 +62,14 @@ const OpeningStock = () => {
   });
 
   // normalize query results (avoid destructuring errors)
-  const openingData = openingQueryData?.opening_unloading ?? [];
-
   // sync incoming items when openingData changes
+  const openingData = openingQueryData?.opening_unloading ?? [];
   useEffect(() => {
     if (!openingQueryData) return;
     setIncomingItems(openingData);
   }, [openingQueryData]);
 
+  //* handlers
   // Add new item (insert unloading with nested unloading_items and remaining_items)
   const handleAddItem = async (e) => {
     e?.preventDefault?.();

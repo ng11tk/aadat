@@ -5,6 +5,28 @@ import { Plus, Trash2, Package } from "lucide-react";
 import { FETCH_SUPPLIERS } from "../../../graphql/query";
 import { useEffect, useState } from "react";
 
+const supplierUnloadingItems = [
+  {
+    name: "Aaloo",
+    weight: 500,
+    rate: 10,
+    quantity: 10,
+    remaining_quantity: 10,
+    unit: "quintal",
+    isSellable: true,
+  },
+];
+const modiUnloadingItems = [
+  {
+    name: "Gobhi",
+    rate: 0,
+    quantity: 10,
+    remaining_quantity: 10,
+    unit: "quintal",
+    isSellable: true,
+  },
+];
+
 const AddItemModal = ({
   onClose,
   onAdd,
@@ -30,19 +52,15 @@ const AddItemModal = ({
   }, [supplier_supplier]);
 
   const handleAddMoreItem = () => {
-    setNewItem({
-      ...newItem,
+    setNewItem((prev) => ({
+      ...prev,
       unloading_items: [
-        ...newItem.unloading_items,
-        {
-          name: "ghobhi",
-          rate: 10,
-          quantity: 10,
-          unit: "quintal",
-          isSellable: true,
-        },
+        ...prev.unloading_items,
+        ...(prev.type === "supplier"
+          ? supplierUnloadingItems
+          : modiUnloadingItems),
       ],
-    });
+    }));
   };
 
   const handleRemoveItem = (index) => {
@@ -56,8 +74,15 @@ const AddItemModal = ({
     setNewItem({ ...newItem, unloading_items: updatedItems });
   };
 
-  const handleChange = (field, value, supplier_id) => {
-    setNewItem({ ...newItem, [field]: value, supplier_id: supplier_id });
+  const handleChange = (field, value) => {
+    setNewItem((prev) => {
+      const updatedItem = { ...prev, [field]: value };
+      if (field === "type") {
+        updatedItem.unloading_items =
+          value === "supplier" ? supplierUnloadingItems : modiUnloadingItems;
+      }
+      return updatedItem;
+    });
   };
 
   if (loading) {
